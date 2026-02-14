@@ -1,0 +1,6 @@
+PySide6>=6.5.0
+Pillow>=10.0.0
+opencv-python>=4.8.0
+reportlab>=4.0.0
+send2trash>=1.8.0
+pyinstaller>=6.0.0
