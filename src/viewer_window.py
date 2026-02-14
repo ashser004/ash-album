@@ -1,28 +1,32 @@
 """
-Ash Album —  Full-screen image viewer with action buttons.
+Ash Album —  Full-screen media viewer with action buttons and video playback.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import Qt, Signal, QSize, QTimer
+from PySide6.QtCore import Qt, Signal, QSize, QTimer, QUrl
 from PySide6.QtGui import QFont, QPixmap, QKeySequence, QShortcut, QImage
+from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput
+from PySide6.QtMultimediaWidgets import QVideoWidget
 from PySide6.QtWidgets import (
     QDialog,
     QHBoxLayout,
     QLabel,
     QPushButton,
+    QStackedWidget,
     QVBoxLayout,
     QWidget,
     QSizePolicy,
 )
 
+from .config import VIDEO_EXTENSIONS
 from .theme import COLORS
 
 
 class ViewerWindow(QDialog):
-    """Modal image/video-frame viewer with navigation and action buttons."""
+    """Modal image/video viewer with navigation and action buttons."""
 
     # Signals so the main window can react
     request_select = Signal(str)        # toggle selection
@@ -30,7 +34,6 @@ class ViewerWindow(QDialog):
     request_delete = Signal(str)        # delete
     request_hide = Signal(str)          # hide
     request_add_pdf = Signal(str)       # add to PDF selection
-    item_removed = Signal(str)          # main window confirms removal
     closed = Signal()
 
     def __init__(
@@ -45,6 +48,8 @@ class ViewerWindow(QDialog):
         self._idx = max(0, min(start_index, len(items) - 1))
         self._selected = selected_set
         self._ready = False  # guard for resizeEvent
+        self._current_pixmap: QPixmap | None = None
+        self._is_video = False
 
         super().__init__(parent)
         self.setWindowTitle("Ash Album — Viewer")
@@ -74,27 +79,48 @@ class ViewerWindow(QDialog):
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
 
-        # --- image area ---
-        img_row = QHBoxLayout()
-        img_row.setContentsMargins(0, 0, 0, 0)
+        # --- media area ---
+        media_row = QHBoxLayout()
+        media_row.setContentsMargins(0, 0, 0, 0)
 
         self._btn_prev = self._nav_btn("❮")
         self._btn_prev.clicked.connect(self._prev)
-        img_row.addWidget(self._btn_prev)
+        media_row.addWidget(self._btn_prev)
 
+        # Stacked widget: page 0 = image, page 1 = video
+        self._media_stack = QStackedWidget()
+        self._media_stack.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
+        )
+
+        # Page 0: image label
         self._image_label = QLabel()
         self._image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._image_label.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
         )
         self._image_label.setStyleSheet("background-color: transparent;")
-        img_row.addWidget(self._image_label, 1)
+        self._media_stack.addWidget(self._image_label)
+
+        # Page 1: video widget
+        self._video_widget = QVideoWidget()
+        self._video_widget.setStyleSheet("background-color: black;")
+        self._media_stack.addWidget(self._video_widget)
+
+        # Media player
+        self._media_player = QMediaPlayer()
+        self._audio_output = QAudioOutput()
+        self._media_player.setAudioOutput(self._audio_output)
+        self._media_player.setVideoOutput(self._video_widget)
+        self._media_player.errorOccurred.connect(self._on_media_error)
+
+        media_row.addWidget(self._media_stack, 1)
 
         self._btn_next = self._nav_btn("❯")
         self._btn_next.clicked.connect(self._next)
-        img_row.addWidget(self._btn_next)
+        media_row.addWidget(self._btn_next)
 
-        root.addLayout(img_row, 1)
+        root.addLayout(media_row, 1)
 
         # --- info bar ---
         self._info_label = QLabel()
@@ -121,6 +147,10 @@ class ViewerWindow(QDialog):
         self._btn_crop = self._action_btn("Crop")
         self._btn_crop.clicked.connect(self._on_crop)
 
+        self._btn_play = self._action_btn("⏸  Pause")
+        self._btn_play.clicked.connect(self._toggle_play_pause)
+        self._btn_play.hide()  # only visible for videos
+
         self._btn_delete = self._action_btn("Delete", "dangerBtn")
         self._btn_delete.clicked.connect(self._on_delete)
 
@@ -131,8 +161,8 @@ class ViewerWindow(QDialog):
         self._btn_pdf.clicked.connect(self._on_add_pdf)
 
         bar_lay.addStretch()
-        for b in (self._btn_select, self._btn_crop, self._btn_delete,
-                  self._btn_hide, self._btn_pdf):
+        for b in (self._btn_select, self._btn_crop, self._btn_play,
+                  self._btn_delete, self._btn_hide, self._btn_pdf):
             bar_lay.addWidget(b)
         bar_lay.addStretch()
 
@@ -166,6 +196,7 @@ class ViewerWindow(QDialog):
         QShortcut(QKeySequence(Qt.Key.Key_Left), self, self._prev)
         QShortcut(QKeySequence(Qt.Key.Key_Right), self, self._next)
         QShortcut(QKeySequence(Qt.Key.Key_Escape), self, self.close)
+        QShortcut(QKeySequence(Qt.Key.Key_Space), self, self._toggle_play_pause)
 
     # ────────────────── display ──────────────────
 
@@ -178,34 +209,88 @@ class ViewerWindow(QDialog):
         if not self._ready:
             return
 
+        # Stop any existing playback
+        self._media_player.stop()
+
         path = self._current_path()
         if not path:
             self._image_label.setText("No image")
             return
 
         ext = Path(path).suffix.lower()
-        from .config import VIDEO_EXTENSIONS
+        self._is_video = ext in VIDEO_EXTENSIONS
 
-        if ext in VIDEO_EXTENSIONS:
-            pm = self._video_frame(path)
+        if self._is_video:
+            self._show_video(path)
         else:
-            pm = QPixmap(path)
+            self._show_image(path)
 
+        # Info bar
+        self._update_info(path)
+
+        # Button states
+        is_sel = path in self._selected
+        self._btn_select.setText("Deselect ✓" if is_sel else "Select")
+        self._btn_crop.setVisible(not self._is_video)
+        self._btn_play.setVisible(self._is_video)
+
+    def _show_image(self, path: str):
+        self._media_stack.setCurrentIndex(0)
+        pm = QPixmap(path)
         if pm and not pm.isNull():
-            label_size = self._image_label.size()
-            if label_size.width() > 10 and label_size.height() > 10:
-                scaled = pm.scaled(
-                    label_size,
-                    Qt.AspectRatioMode.KeepAspectRatio,
-                    Qt.TransformationMode.SmoothTransformation,
-                )
-                self._image_label.setPixmap(scaled)
-            else:
-                self._image_label.setPixmap(pm)
+            self._current_pixmap = pm
+            self._scale_image()
         else:
+            self._current_pixmap = None
             self._image_label.setText("Cannot load file")
 
-        # Info
+    def _scale_image(self):
+        """Scale and display the cached pixmap to fit the image label."""
+        if not self._current_pixmap:
+            return
+        label_size = self._image_label.size()
+        if label_size.width() > 10 and label_size.height() > 10:
+            scaled = self._current_pixmap.scaled(
+                label_size,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
+            self._image_label.setPixmap(scaled)
+        else:
+            self._image_label.setPixmap(self._current_pixmap)
+
+    def _show_video(self, path: str):
+        self._current_pixmap = None
+        self._media_stack.setCurrentIndex(1)
+        self._media_player.setSource(QUrl.fromLocalFile(path))
+        self._media_player.play()
+        self._btn_play.setText("⏸  Pause")
+
+    def _toggle_play_pause(self):
+        if not self._is_video:
+            return
+        state = self._media_player.playbackState()
+        if state == QMediaPlayer.PlaybackState.PlayingState:
+            self._media_player.pause()
+            self._btn_play.setText("▶  Play")
+        else:
+            self._media_player.play()
+            self._btn_play.setText("⏸  Pause")
+
+    def _on_media_error(self, error, message):
+        """If video playback fails, fall back to a static frame."""
+        path = self._current_path()
+        if not path:
+            return
+        self._media_stack.setCurrentIndex(0)
+        pm = self._video_frame(path)
+        if pm and not pm.isNull():
+            self._current_pixmap = pm
+            self._scale_image()
+        else:
+            self._image_label.setText(f"Cannot play video: {message}")
+
+    def _update_info(self, path: str):
         try:
             p = Path(path)
             sz = p.stat().st_size
@@ -216,13 +301,6 @@ class ViewerWindow(QDialog):
             )
         except OSError:
             self._info_label.setText(Path(path).name)
-
-        # Update select button label
-        is_sel = path in self._selected
-        self._btn_select.setText("Deselect ✓" if is_sel else "Select")
-
-        # Disable crop for videos
-        self._btn_crop.setEnabled(ext not in VIDEO_EXTENSIONS)
 
     @staticmethod
     def _video_frame(path: str) -> QPixmap | None:
@@ -266,11 +344,8 @@ class ViewerWindow(QDialog):
         path = self._current_path()
         if path:
             self.request_select.emit(path)
-            # Toggle locally so UI updates immediately
-            if path in self._selected:
-                self._selected.discard(path)
-            else:
-                self._selected.add(path)
+            # The shared _selected set is toggled by main window synchronously;
+            # just refresh the UI to reflect the new state.
             self._show_current()
 
     def _on_crop(self):
@@ -304,19 +379,27 @@ class ViewerWindow(QDialog):
 
     def _on_add_pdf(self):
         path = self._current_path()
-        if path:
-            self.request_add_pdf.emit(path)
-            if path not in self._selected:
-                self._selected.add(path)
-            self._show_current()
+        if not path:
+            return
+        # Only images can be added to PDF
+        if self._is_video:
+            return
+        self.request_add_pdf.emit(path)
+        if path not in self._selected:
+            self._selected.add(path)
+        self._show_current()
 
     # ────────────────── resize ──────────────────
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        if self._ready:
-            self._show_current()
+        if not self._ready:
+            return
+        # Only re-scale images; video widget auto-resizes
+        if not self._is_video and self._current_pixmap:
+            self._scale_image()
 
     def closeEvent(self, event):
+        self._media_player.stop()
         self.closed.emit()
         super().closeEvent(event)

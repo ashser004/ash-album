@@ -39,6 +39,9 @@ ROLE_PATH = Qt.ItemDataRole.UserRole + 1
 ROLE_MEDIA_TYPE = Qt.ItemDataRole.UserRole + 2
 ROLE_LOADED = Qt.ItemDataRole.UserRole + 3
 ROLE_APP_SELECTED = Qt.ItemDataRole.UserRole + 4
+ROLE_DATE_HEADER = Qt.ItemDataRole.UserRole + 5
+
+DATE_HEADER_H = 44
 
 
 # ────────────────────────────────────────────────────────────────
@@ -71,6 +74,27 @@ class ThumbnailDelegate(QStyledItemDelegate):
     # ---- painting ----
 
     def paint(self, painter: QPainter, option, index):
+        # ── Date header item ──
+        if index.data(ROLE_DATE_HEADER):
+            painter.save()
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+            rect: QRect = option.rect
+            # Separator line
+            painter.setPen(QPen(QColor("#2a2a3e"), 1))
+            painter.drawLine(rect.x() + 16, rect.bottom() - 1,
+                             rect.right() - 16, rect.bottom() - 1)
+            # Date text
+            painter.setPen(QColor("#8686a4"))
+            painter.setFont(QFont("Segoe UI", 11, QFont.Weight.DemiBold))
+            painter.drawText(
+                QRect(rect.x() + 16, rect.y(), rect.width() - 32, rect.height() - 4),
+                Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
+                index.data(Qt.ItemDataRole.DisplayRole) or "",
+            )
+            painter.restore()
+            return
+
+        # ── Normal thumbnail item ──
         painter.save()
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
@@ -166,6 +190,10 @@ class ThumbnailDelegate(QStyledItemDelegate):
         painter.restore()
 
     def sizeHint(self, option, index):
+        if index.data(ROLE_DATE_HEADER):
+            parent = self.parent()
+            vw = parent.viewport().width() if parent else 1200
+            return QSize(vw, DATE_HEADER_H)
         return ITEM_SIZE
 
 
@@ -185,9 +213,8 @@ class GalleryWidget(QListWidget):
         self.setResizeMode(QListWidget.ResizeMode.Adjust)
         self.setMovement(QListWidget.Movement.Static)
         self.setSpacing(8)
-        self.setUniformItemSizes(True)
+        self.setUniformItemSizes(False)
         self.setIconSize(QSize(THUMB_SIZE, THUMB_SIZE))
-        self.setGridSize(ITEM_SIZE)
         self.setSelectionMode(QListWidget.SelectionMode.NoSelection)
         self.setMouseTracking(True)
         self.setWrapping(True)
@@ -203,6 +230,15 @@ class GalleryWidget(QListWidget):
         self.itemDoubleClicked.connect(self._on_double_click)
 
     # ---- public API ----
+
+    def add_date_header(self, date_str: str):
+        """Insert a full-width date separator row."""
+        item = QListWidgetItem()
+        item.setData(Qt.ItemDataRole.DisplayRole, date_str)
+        item.setData(ROLE_DATE_HEADER, True)
+        item.setFlags(Qt.ItemFlag.NoItemFlags)  # not selectable/clickable
+        # Do NOT call setSizeHint — the delegate computes it dynamically
+        self.addItem(item)
 
     def add_media_item(self, name: str, path: str, media_type: str):
         item = QListWidgetItem()
@@ -264,7 +300,10 @@ class GalleryWidget(QListWidget):
         self._path_items.clear()
 
     def get_all_paths(self) -> list[str]:
-        return [self.item(i).data(ROLE_PATH) for i in range(self.count())]
+        return [
+            p for i in range(self.count())
+            if (p := self.item(i).data(ROLE_PATH))
+        ]
 
     def path_exists(self, path: str) -> bool:
         return path in self._path_items
@@ -272,6 +311,8 @@ class GalleryWidget(QListWidget):
     # ---- signals ----
 
     def _on_click(self, item: QListWidgetItem):
+        if item.data(ROLE_DATE_HEADER):
+            return
         path = item.data(ROLE_PATH)
         if not path:
             return

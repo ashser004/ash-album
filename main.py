@@ -9,6 +9,11 @@ Usage:
 import sys
 import os
 
+# Suppress noisy FFmpeg / OpenCV warnings in the console
+os.environ["OPENCV_LOG_LEVEL"] = "ERROR"
+os.environ["OPENCV_VIDEOIO_DEBUG"] = "0"
+os.environ["QT_LOGGING_RULES"] = "qt.multimedia.ffmpeg.warning=false"
+
 # Ensure the project root is on the path so ``src`` package resolves
 # when running from source or from a PyInstaller bundle.
 if getattr(sys, "frozen", False):

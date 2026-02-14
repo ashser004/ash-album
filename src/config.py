@@ -5,6 +5,7 @@ Ash Album — Application configuration and paths.
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 APP_NAME = "Ash Album"
@@ -12,20 +13,71 @@ APP_VERSION = "1.0.0"
 
 DEFAULT_BASE_DIR = Path.home() / "Documents" / "AshAlbum"
 
-IMAGE_EXTENSIONS = frozenset({".jpg", ".jpeg", ".png", ".bmp", ".webp"})
-VIDEO_EXTENSIONS = frozenset({".mp4", ".mkv", ".mov", ".avi"})
+IMAGE_EXTENSIONS = frozenset({".jpg", ".jpeg", ".png", ".bmp", ".webp", ".gif"})
+VIDEO_EXTENSIONS = frozenset({".mp4", ".mkv", ".mov", ".avi", ".webm"})
 ALL_EXTENSIONS = IMAGE_EXTENSIONS | VIDEO_EXTENSIONS
 
 THUMB_SIZE = 180
 
-SCAN_FOLDERS = [
-    Path.home() / "Pictures",
-    Path.home() / "Videos",
-    Path.home() / "Desktop",
-    Path.home() / "Downloads",
-]
 
-SCREENSHOTS_FOLDER = Path.home() / "Pictures" / "Screenshots"
+def _build_scan_folders() -> list[Path]:
+    """Detect all directories to scan, including OneDrive-redirected folders."""
+    home = Path.home()
+    candidates = [
+        home / "Pictures",
+        home / "Videos",
+        home / "Desktop",
+        home / "Downloads",
+    ]
+    # OneDrive may redirect Pictures/Desktop/Documents to its own folder
+    for env_key in ("OneDrive", "OneDriveConsumer", "OneDriveCommercial"):
+        od = os.environ.get(env_key)
+        if od:
+            od_path = Path(od)
+            candidates.extend([
+                od_path / "Pictures",
+                od_path / "Videos",
+                od_path / "Desktop",
+                od_path / "Documents",
+            ])
+    # Deduplicate by resolved path (case-insensitive on Windows)
+    seen: set[str] = set()
+    result: list[Path] = []
+    for folder in candidates:
+        try:
+            resolved = str(folder.resolve())
+        except OSError:
+            resolved = str(folder)
+        key = resolved.lower()
+        if key not in seen and folder.exists():
+            result.append(folder)
+            seen.add(key)
+    return result
+
+
+def _build_screenshot_folders() -> list[Path]:
+    """Return all possible screenshot folder paths that exist on disk."""
+    home = Path.home()
+    candidates = [home / "Pictures" / "Screenshots"]
+    for env_key in ("OneDrive", "OneDriveConsumer", "OneDriveCommercial"):
+        od = os.environ.get(env_key)
+        if od:
+            candidates.append(Path(od) / "Pictures" / "Screenshots")
+    seen: set[str] = set()
+    result: list[Path] = []
+    for f in candidates:
+        try:
+            resolved = str(f.resolve()).lower()
+        except OSError:
+            resolved = str(f).lower()
+        if resolved not in seen and f.exists():
+            result.append(f)
+            seen.add(resolved)
+    return result
+
+
+SCAN_FOLDERS = _build_scan_folders()
+SCREENSHOT_FOLDERS = _build_screenshot_folders()
 
 SORT_OPTIONS = [
     ("Name (A → Z)", "name_asc"),

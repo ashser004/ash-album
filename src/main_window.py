@@ -42,7 +42,7 @@ from .config import (
     APP_VERSION,
     IMAGE_EXTENSIONS,
     SCAN_FOLDERS,
-    SCREENSHOTS_FOLDER,
+    SCREENSHOT_FOLDERS,
     SORT_OPTIONS,
     VIDEO_EXTENSIONS,
     AppConfig,
@@ -373,7 +373,10 @@ class MainWindow(QMainWindow):
 
         # Determine whether the screenshots tab should be visible
         has_screenshots = any(
-            item.folder_path.lower().rstrip("\\/ ") == str(SCREENSHOTS_FOLDER).lower().rstrip("\\/ ")
+            any(
+                item.folder_path.lower().rstrip("\\/ ") == str(sf).lower().rstrip("\\/ ")
+                for sf in SCREENSHOT_FOLDERS
+            )
             for item in self._all_items
         )
         if has_screenshots:
@@ -437,13 +440,20 @@ class MainWindow(QMainWindow):
         filtered = self._sort_items(filtered, self._current_sort)
 
         self._folder_gallery.clear_gallery()
-        for item in filtered:
-            self._folder_gallery.add_media_item(item.name, item.path, item.media_type)
-            pm = self._thumb_cache.get(item.path)
-            if pm:
-                self._folder_gallery.set_thumbnail_pixmap(item.path, pm)
-            if item.path in self._selected_paths:
-                self._folder_gallery.set_selection(item.path, True)
+
+        use_date_groups = self._current_sort in (
+            "created_desc", "created_asc", "modified_desc", "modified_asc",
+        )
+
+        if use_date_groups:
+            groups = self._group_by_date(filtered, self._current_sort)
+            for date_str, items in groups:
+                self._folder_gallery.add_date_header(date_str)
+                for item in items:
+                    self._add_gallery_item(self._folder_gallery, item)
+        else:
+            for item in filtered:
+                self._add_gallery_item(self._folder_gallery, item)
 
     # ================================================================
     #  Tab switching
@@ -499,15 +509,50 @@ class MainWindow(QMainWindow):
         filtered = self._sort_items(filtered, self._current_sort)
 
         self._gallery.clear_gallery()
-        for item in filtered:
-            self._gallery.add_media_item(item.name, item.path, item.media_type)
-            # Apply cached thumbnail
-            pm = self._thumb_cache.get(item.path)
-            if pm:
-                self._gallery.set_thumbnail_pixmap(item.path, pm)
-            # Apply selection state
-            if item.path in self._selected_paths:
-                self._gallery.set_selection(item.path, True)
+
+        # Insert date section headers when sorting by date
+        use_date_groups = self._current_sort in (
+            "created_desc", "created_asc", "modified_desc", "modified_asc",
+        )
+
+        if use_date_groups:
+            groups = self._group_by_date(filtered, self._current_sort)
+            for date_str, items in groups:
+                self._gallery.add_date_header(date_str)
+                for item in items:
+                    self._add_gallery_item(self._gallery, item)
+        else:
+            for item in filtered:
+                self._add_gallery_item(self._gallery, item)
+
+    def _add_gallery_item(self, gallery, item: MediaItem):
+        """Helper: add a single media item to a gallery with thumb + selection."""
+        gallery.add_media_item(item.name, item.path, item.media_type)
+        pm = self._thumb_cache.get(item.path)
+        if pm:
+            gallery.set_thumbnail_pixmap(item.path, pm)
+        if item.path in self._selected_paths:
+            gallery.set_selection(item.path, True)
+
+    @staticmethod
+    def _group_by_date(
+        items: list[MediaItem], sort_key: str
+    ) -> list[tuple[str, list[MediaItem]]]:
+        """Group already-sorted items by date. Returns (date_label, items) pairs."""
+        if sort_key in ("created_desc", "created_asc"):
+            ts_fn = lambda i: i.created
+        else:
+            ts_fn = lambda i: i.modified
+
+        groups: list[tuple[str, list[MediaItem]]] = []
+        prev_label = ""
+        for item in items:
+            label = datetime.fromtimestamp(ts_fn(item)).strftime("%d %B %Y")
+            if label != prev_label:
+                groups.append((label, []))
+                prev_label = label
+            groups[-1][1].append(item)
+        return groups
 
     def _item_matches_tab(self, item: MediaItem, tab: str) -> bool:
         if tab == TAB_ALL:
@@ -520,11 +565,13 @@ class MainWindow(QMainWindow):
             cutoff = (datetime.now() - timedelta(days=RECENT_DAYS)).timestamp()
             return item.modified >= cutoff
         if tab == TAB_SCREENSHOTS:
-            try:
-                Path(item.path).relative_to(SCREENSHOTS_FOLDER)
-                return item.media_type == "photo"
-            except ValueError:
-                return False
+            for sf in SCREENSHOT_FOLDERS:
+                try:
+                    Path(item.path).relative_to(sf)
+                    return item.media_type == "photo"
+                except ValueError:
+                    continue
+            return False
         return False
 
     @staticmethod
