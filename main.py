@@ -25,7 +25,7 @@ if _BASE not in sys.path:
 
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QFont
+from PySide6.QtGui import QFont, QIcon
 
 from src.config import AppConfig
 from src.theme import get_stylesheet
@@ -50,6 +50,11 @@ def main():
 
     # Apply dark theme
     app.setStyleSheet(get_stylesheet())
+
+    # App icon (place icon.png in project root — 256×256 recommended)
+    icon_path = os.path.join(_BASE, "icon.png")
+    if os.path.isfile(icon_path):
+        app.setWindowIcon(QIcon(icon_path))
 
     # Configuration
     config = AppConfig()

@@ -67,10 +67,9 @@ TAB_RECENT = "RECENT"
 TAB_SCREENSHOTS = "SCREENSHOTS"
 TAB_FOLDERS = "FOLDERS"
 TAB_HIDDEN = "HIDDEN"
-TAB_DELETED = "RECENTLY DELETED"
 
 TAB_ORDER = [TAB_ALL, TAB_PHOTOS, TAB_VIDEOS, TAB_RECENT,
-             TAB_SCREENSHOTS, TAB_FOLDERS, TAB_HIDDEN, TAB_DELETED]
+             TAB_SCREENSHOTS, TAB_FOLDERS, TAB_HIDDEN]
 
 
 class MainWindow(QMainWindow):
@@ -154,19 +153,23 @@ class MainWindow(QMainWindow):
         self._hidden_gallery.item_activated.connect(self._open_viewer_hidden)
         self._stack.addWidget(self._hidden_gallery)
 
-        # Page 2: recently deleted list
-        self._deleted_list = QListWidget()
-        self._deleted_list.setStyleSheet(
-            f"QListWidget {{ background: {COLORS['bg_dark']}; border: none; }}"
-            f"QListWidget::item {{ padding: 8px 16px; "
-            f"border-bottom: 1px solid {COLORS['border']}; }}"
-            f"QListWidget::item:hover {{ background: {COLORS['bg_light']}; }}"
-        )
-        self._stack.addWidget(self._deleted_list)
-
-        # Page 3: FOLDERS tab — splitter with sidebar + gallery
+        # Page 2: FOLDERS tab — splitter with sidebar + gallery
         self._folders_page = self._make_folders_page()
         self._stack.addWidget(self._folders_page)
+
+        # ---- Toast label (overlay) ----
+        self._toast = QLabel(self)
+        self._toast.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._toast.setFixedHeight(40)
+        self._toast.setStyleSheet(
+            f"background-color: {COLORS['bg_lighter']}; color: {COLORS['text']}; "
+            f"border-radius: 8px; font-size: 13px; font-weight: 600; "
+            f"padding: 8px 24px; border: 1px solid {COLORS['border']};"
+        )
+        self._toast.hide()
+        self._toast_timer = QTimer(self)
+        self._toast_timer.setSingleShot(True)
+        self._toast_timer.timeout.connect(self._toast.hide)
 
         # --- bottom bar ---
         root.addWidget(self._make_bottom_bar())
@@ -185,6 +188,21 @@ class MainWindow(QMainWindow):
         lay.addWidget(title)
 
         lay.addStretch()
+
+        # Refresh button
+        btn_refresh = QPushButton("⟳  Refresh")
+        btn_refresh.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_refresh.setFixedHeight(32)
+        btn_refresh.setStyleSheet(
+            f"QPushButton {{ background-color: {COLORS['bg_light']}; color: {COLORS['text']}; "
+            f"border: 1px solid {COLORS['border']}; border-radius: 6px; "
+            f"padding: 4px 16px; font-weight: 600; font-size: 12px; }}"
+            f"QPushButton:hover {{ background-color: {COLORS['accent']}; color: #fff; border-color: {COLORS['accent']}; }}"
+        )
+        btn_refresh.clicked.connect(self._do_refresh)
+        lay.addWidget(btn_refresh)
+
+        lay.addSpacing(12)
 
         # Sort combo
         sort_label = QLabel("Sort:")
@@ -310,6 +328,19 @@ class MainWindow(QMainWindow):
         )
         btn_clear.clicked.connect(self._clear_selection)
         lay.addWidget(btn_clear)
+
+        # Delete Selected button
+        self._btn_delete_sel = QPushButton("Delete Selected")
+        self._btn_delete_sel.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._btn_delete_sel.setFixedHeight(30)
+        self._btn_delete_sel.setStyleSheet(
+            f"QPushButton {{ background-color: {COLORS['danger']}; color: #ffffff; "
+            f"border: none; border-radius: 6px; padding: 4px 14px; "
+            f"font-weight: 600; font-size: 11px; }}"
+            f"QPushButton:hover {{ background-color: #f44336; }}"
+        )
+        self._btn_delete_sel.clicked.connect(self._delete_selected)
+        lay.addWidget(self._btn_delete_sel)
 
         lay.addStretch()
 
@@ -481,11 +512,8 @@ class MainWindow(QMainWindow):
         if tab_id == TAB_HIDDEN:
             self._stack.setCurrentIndex(1)
             self._refresh_hidden()
-        elif tab_id == TAB_DELETED:
-            self._stack.setCurrentIndex(2)
-            self._refresh_deleted()
         elif tab_id == TAB_FOLDERS:
-            self._stack.setCurrentIndex(3)
+            self._stack.setCurrentIndex(2)
             self._rebuild_folder_sidebar()
             # If a folder was selected, refresh its gallery
             if self._active_folder:
@@ -503,8 +531,6 @@ class MainWindow(QMainWindow):
         if key:
             self._current_sort = key
             if self._current_tab == TAB_HIDDEN:
-                return
-            if self._current_tab == TAB_DELETED:
                 return
             if self._current_tab == TAB_FOLDERS:
                 self._repopulate_folder_gallery()
@@ -625,20 +651,28 @@ class MainWindow(QMainWindow):
                     self._thumb_worker.enqueue(item.path)
 
     # ================================================================
-    #  Recently Deleted tab
+    #  Toast notifications
     # ================================================================
 
-    def _refresh_deleted(self):
-        self._deleted_list.clear()
-        for entry in reversed(self._ops.get_deleted_this_session()):
-            text = f"  {entry['name']}    —    deleted at {entry['time'][:19]}"
-            li = QListWidgetItem(text)
-            li.setForeground(QColor(COLORS["text_dim"]))
-            self._deleted_list.addItem(li)
-        if self._deleted_list.count() == 0:
-            li = QListWidgetItem("  No files deleted this session.")
-            li.setForeground(QColor(COLORS["text_muted"]))
-            self._deleted_list.addItem(li)
+    def _show_toast(self, message: str, duration_ms: int = 3000):
+        self._toast.setText(message)
+        self._toast.adjustSize()
+        self._toast.setFixedWidth(max(self._toast.sizeHint().width() + 48, 280))
+        # Position at bottom-center, above the bottom bar
+        x = (self.width() - self._toast.width()) // 2
+        y = self.height() - 110
+        self._toast.move(x, y)
+        self._toast.raise_()
+        self._toast.show()
+        self._toast_timer.start(duration_ms)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        # Reposition toast if visible
+        if self._toast.isVisible():
+            x = (self.width() - self._toast.width()) // 2
+            y = self.height() - 110
+            self._toast.move(x, y)
 
     # ================================================================
     #  Selection
@@ -689,6 +723,7 @@ class MainWindow(QMainWindow):
         dlg.request_crop.connect(self._do_crop)
         dlg.request_delete.connect(self._do_delete)
         dlg.request_add_pdf.connect(self._viewer_add_pdf)
+        dlg.selection_changed.connect(self._sync_gallery_selection)
         self._active_viewer = dlg
         dlg.exec()
         self._active_viewer = None
@@ -700,6 +735,7 @@ class MainWindow(QMainWindow):
         dlg.request_delete.connect(self._do_delete)
         dlg.request_hide.connect(self._do_hide)
         dlg.request_add_pdf.connect(self._viewer_add_pdf)
+        dlg.selection_changed.connect(self._sync_gallery_selection)
         self._active_viewer = dlg
         dlg.exec()
         self._active_viewer = None
@@ -714,6 +750,15 @@ class MainWindow(QMainWindow):
             self._gallery.set_selection(path, path in self._selected_paths)
         if self._folder_gallery.path_exists(path):
             self._folder_gallery.set_selection(path, path in self._selected_paths)
+        self._update_sel_label()
+
+    def _sync_gallery_selection(self):
+        """Sync gallery visuals after bulk-select shortcuts in viewer."""
+        for path in self._selected_paths:
+            if self._gallery.path_exists(path):
+                self._gallery.set_selection(path, True)
+            if self._folder_gallery.path_exists(path):
+                self._folder_gallery.set_selection(path, True)
         self._update_sel_label()
 
     def _viewer_add_pdf(self, path: str):
@@ -735,9 +780,11 @@ class MainWindow(QMainWindow):
     def _do_delete(self, path: str):
         ok = self._ops.delete_to_trash(path)
         if ok:
+            name = Path(path).name
             self._remove_item(path)
             if self._active_viewer:
                 self._active_viewer.confirm_removal(path)
+            self._show_toast(f"🗑  {name}  moved to Recycle Bin")
 
     def _do_hide(self, path: str):
         new_path = self._ops.hide_file(path)
@@ -835,6 +882,65 @@ class MainWindow(QMainWindow):
             )
         except Exception as exc:
             QMessageBox.warning(self, "Error", f"PDF generation failed:\n{exc}")
+
+    # ================================================================
+    #  Bulk delete selected
+    # ================================================================
+
+    def _delete_selected(self):
+        paths = list(self._selected_paths)
+        if not paths:
+            self._show_toast("No items selected")
+            return
+        count = len(paths)
+        reply = QMessageBox.question(
+            self, "Delete Selected",
+            f"Move {count} selected item(s) to the Recycle Bin?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        deleted = 0
+        for p in paths:
+            if self._ops.delete_to_trash(p):
+                self._remove_item(p)
+                deleted += 1
+        self._show_toast(f"🗑  {deleted} item(s) moved to Recycle Bin")
+
+    # ================================================================
+    #  Refresh / rescan
+    # ================================================================
+
+    def _do_refresh(self):
+        """Stop current workers, clear data, and rescan everything."""
+        # Stop workers
+        if self._scanner:
+            self._scanner.stop()
+            self._scanner.wait(2000)
+            self._scanner = None
+        if self._thumb_worker:
+            self._thumb_worker.stop()
+            self._thumb_worker.wait(2000)
+            self._thumb_worker = None
+
+        # Clear data stores
+        self._all_items.clear()
+        self._selected_paths.clear()
+        self._thumb_cache.clear()
+        self._discovered_folders.clear()
+        self._active_folder = None
+
+        # Clear galleries
+        self._gallery.clear_gallery()
+        self._hidden_gallery.clear_gallery()
+        self._folder_gallery.clear_gallery()
+        self._folder_list.clear()
+
+        self._update_sel_label()
+        self._show_toast("⟳  Refreshing…", 1500)
+
+        # Restart scan
+        QTimer.singleShot(200, self._start_scan)
 
     # ================================================================
     #  Cleanup

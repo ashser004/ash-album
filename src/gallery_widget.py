@@ -323,4 +323,8 @@ class GalleryWidget(QListWidget):
             self.item_activated.emit(path)
 
     def _on_double_click(self, item: QListWidgetItem):
-        pass  # single-click handles activation already
+        if item.data(ROLE_DATE_HEADER):
+            return
+        path = item.data(ROLE_PATH)
+        if path:
+            self.item_toggle_select.emit(path)

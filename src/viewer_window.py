@@ -34,6 +34,7 @@ class ViewerWindow(QDialog):
     request_delete = Signal(str)        # delete
     request_hide = Signal(str)          # hide
     request_add_pdf = Signal(str)       # add to PDF selection
+    selection_changed = Signal()        # batch-select shortcuts updated the shared set
     closed = Signal()
 
     def __init__(
@@ -365,29 +366,31 @@ class ViewerWindow(QDialog):
     # ────────────────── multi-select shortcuts ──────────────────
 
     def _ensure_selected(self, path: str | None):
-        """Select a path if it isn't already selected."""
+        """Add a path to the shared selected set (never toggle)."""
         if path and path not in self._selected:
-            self.request_select.emit(path)
+            self._selected.add(path)
 
     def _select_and_next(self):
         self._ensure_selected(self._current_path())
         if self._idx < len(self._items) - 1:
             self._idx += 1
             self._ensure_selected(self._current_path())
-            self._show_current()
+        self._show_current()
+        self.selection_changed.emit()
 
     def _select_and_prev(self):
         self._ensure_selected(self._current_path())
         if self._idx > 0:
             self._idx -= 1
             self._ensure_selected(self._current_path())
-            self._show_current()
+        self._show_current()
+        self.selection_changed.emit()
 
     def _select_all(self):
         for path in self._items:
-            if path not in self._selected:
-                self.request_select.emit(path)
+            self._selected.add(path)
         self._show_current()
+        self.selection_changed.emit()
 
     # ────────────────── actions ──────────────────
 
