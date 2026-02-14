@@ -295,11 +295,19 @@ class MainWindow(QMainWindow):
         lay.setSpacing(12)
 
         self._sel_label = QLabel("0 selected")
-        self._sel_label.setStyleSheet(f"color: {COLORS['text_dim']}; font-size: 12px;")
+        self._sel_label.setStyleSheet(
+            f"color: {COLORS['accent']}; font-size: 13px; font-weight: 700;"
+        )
         lay.addWidget(self._sel_label)
 
         btn_clear = QPushButton("Clear")
         btn_clear.setFixedHeight(30)
+        btn_clear.setStyleSheet(
+            f"QPushButton {{ background-color: {COLORS['bg_lighter']}; "
+            f"color: {COLORS['text']}; border: 1px solid {COLORS['border']}; "
+            f"border-radius: 6px; padding: 4px 14px; font-weight: 600; font-size: 11px; }}"
+            f"QPushButton:hover {{ background-color: {COLORS['accent']}; color: #fff; border-color: {COLORS['accent']}; }}"
+        )
         btn_clear.clicked.connect(self._clear_selection)
         lay.addWidget(btn_clear)
 
@@ -312,9 +320,14 @@ class MainWindow(QMainWindow):
         lay.addStretch()
 
         btn_pdf = QPushButton("  Generate PDF  ")
-        btn_pdf.setObjectName("accentBtn")
         btn_pdf.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_pdf.setFixedHeight(32)
+        btn_pdf.setFixedHeight(34)
+        btn_pdf.setStyleSheet(
+            f"QPushButton {{ background-color: {COLORS['accent']}; color: #ffffff; "
+            f"border: none; border-radius: 7px; padding: 6px 24px; "
+            f"font-weight: 700; font-size: 13px; letter-spacing: 0.4px; }}"
+            f"QPushButton:hover {{ background-color: {COLORS['accent_hover']}; }}"
+        )
         btn_pdf.clicked.connect(self._generate_pdf)
         lay.addWidget(btn_pdf)
 

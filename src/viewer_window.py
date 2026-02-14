@@ -135,29 +135,35 @@ class ViewerWindow(QDialog):
 
         # --- action bar ---
         bar = QWidget()
-        bar.setFixedHeight(56)
-        bar.setStyleSheet(f"background-color: {COLORS['bg_mid']};")
+        bar.setFixedHeight(60)
+        bar.setStyleSheet(
+            f"background-color: {COLORS['bg_dark']};"
+            f"border-top: 1px solid {COLORS['border']};"
+        )
         bar_lay = QHBoxLayout(bar)
-        bar_lay.setContentsMargins(16, 0, 16, 0)
-        bar_lay.setSpacing(12)
+        bar_lay.setContentsMargins(20, 0, 20, 0)
+        bar_lay.setSpacing(14)
 
-        self._btn_select = self._action_btn("Select", "accentBtn")
+        # ── button factory with explicit per-button colours ──
+        _S = self._viewer_btn
+
+        self._btn_select = _S("Select", bg="#7c5cfc", hover="#9b7dff")
         self._btn_select.clicked.connect(self._on_select)
 
-        self._btn_crop = self._action_btn("Crop")
+        self._btn_crop = _S("Crop", bg="#3d5afe", hover="#536dfe")
         self._btn_crop.clicked.connect(self._on_crop)
 
-        self._btn_play = self._action_btn("⏸  Pause")
+        self._btn_play = _S("⏸  Pause", bg="#00bfa5", hover="#1de9b6")
         self._btn_play.clicked.connect(self._toggle_play_pause)
-        self._btn_play.hide()  # only visible for videos
+        self._btn_play.hide()
 
-        self._btn_delete = self._action_btn("Delete", "dangerBtn")
+        self._btn_delete = _S("Delete", bg="#ef5350", hover="#f44336")
         self._btn_delete.clicked.connect(self._on_delete)
 
-        self._btn_hide = self._action_btn("Hide")
+        self._btn_hide = _S("Hide", bg="#ff9800", hover="#ffb74d")
         self._btn_hide.clicked.connect(self._on_hide)
 
-        self._btn_pdf = self._action_btn("Add to PDF", "successBtn")
+        self._btn_pdf = _S("Add to PDF", bg="#43c667", hover="#50d870")
         self._btn_pdf.clicked.connect(self._on_add_pdf)
 
         bar_lay.addStretch()
@@ -192,11 +198,29 @@ class ViewerWindow(QDialog):
         btn.setFixedHeight(36)
         return btn
 
+    @staticmethod
+    def _viewer_btn(text: str, bg: str, hover: str) -> QPushButton:
+        """Create a high-contrast action button with explicit colours."""
+        btn = QPushButton(text)
+        btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn.setFixedHeight(38)
+        btn.setStyleSheet(
+            f"QPushButton {{ background-color: {bg}; color: #ffffff; "
+            f"border: none; border-radius: 8px; padding: 6px 22px; "
+            f"font-weight: 700; font-size: 12px; }}"
+            f"QPushButton:hover {{ background-color: {hover}; }}"
+            f"QPushButton:pressed {{ opacity: 0.8; }}"
+        )
+        return btn
+
     def _bind_shortcuts(self):
         QShortcut(QKeySequence(Qt.Key.Key_Left), self, self._prev)
         QShortcut(QKeySequence(Qt.Key.Key_Right), self, self._next)
         QShortcut(QKeySequence(Qt.Key.Key_Escape), self, self.close)
         QShortcut(QKeySequence(Qt.Key.Key_Space), self, self._toggle_play_pause)
+        QShortcut(QKeySequence("Shift+Right"), self, self._select_and_next)
+        QShortcut(QKeySequence("Shift+Left"), self, self._select_and_prev)
+        QShortcut(QKeySequence("Ctrl+A"), self, self._select_all)
 
     # ────────────────── display ──────────────────
 
@@ -337,6 +361,33 @@ class ViewerWindow(QDialog):
         if self._idx < len(self._items) - 1:
             self._idx += 1
             self._show_current()
+
+    # ────────────────── multi-select shortcuts ──────────────────
+
+    def _ensure_selected(self, path: str | None):
+        """Select a path if it isn't already selected."""
+        if path and path not in self._selected:
+            self.request_select.emit(path)
+
+    def _select_and_next(self):
+        self._ensure_selected(self._current_path())
+        if self._idx < len(self._items) - 1:
+            self._idx += 1
+            self._ensure_selected(self._current_path())
+            self._show_current()
+
+    def _select_and_prev(self):
+        self._ensure_selected(self._current_path())
+        if self._idx > 0:
+            self._idx -= 1
+            self._ensure_selected(self._current_path())
+            self._show_current()
+
+    def _select_all(self):
+        for path in self._items:
+            if path not in self._selected:
+                self.request_select.emit(path)
+        self._show_current()
 
     # ────────────────── actions ──────────────────
 
