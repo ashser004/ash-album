@@ -723,7 +723,6 @@ class MainWindow(QMainWindow):
         dlg.request_crop.connect(self._do_crop)
         dlg.request_delete.connect(self._do_delete)
         dlg.request_add_pdf.connect(self._viewer_add_pdf)
-        dlg.selection_changed.connect(self._sync_gallery_selection)
         self._active_viewer = dlg
         dlg.exec()
         self._active_viewer = None
@@ -735,7 +734,6 @@ class MainWindow(QMainWindow):
         dlg.request_delete.connect(self._do_delete)
         dlg.request_hide.connect(self._do_hide)
         dlg.request_add_pdf.connect(self._viewer_add_pdf)
-        dlg.selection_changed.connect(self._sync_gallery_selection)
         self._active_viewer = dlg
         dlg.exec()
         self._active_viewer = None
@@ -750,15 +748,6 @@ class MainWindow(QMainWindow):
             self._gallery.set_selection(path, path in self._selected_paths)
         if self._folder_gallery.path_exists(path):
             self._folder_gallery.set_selection(path, path in self._selected_paths)
-        self._update_sel_label()
-
-    def _sync_gallery_selection(self):
-        """Sync gallery visuals after bulk-select shortcuts in viewer."""
-        for path in self._selected_paths:
-            if self._gallery.path_exists(path):
-                self._gallery.set_selection(path, True)
-            if self._folder_gallery.path_exists(path):
-                self._folder_gallery.set_selection(path, True)
         self._update_sel_label()
 
     def _viewer_add_pdf(self, path: str):

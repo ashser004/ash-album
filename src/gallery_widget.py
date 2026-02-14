@@ -227,7 +227,6 @@ class GalleryWidget(QListWidget):
         self._path_items: dict[str, QListWidgetItem] = {}
 
         self.itemClicked.connect(self._on_click)
-        self.itemDoubleClicked.connect(self._on_double_click)
 
     # ---- public API ----
 
@@ -322,9 +321,3 @@ class GalleryWidget(QListWidget):
         else:
             self.item_activated.emit(path)
 
-    def _on_double_click(self, item: QListWidgetItem):
-        if item.data(ROLE_DATE_HEADER):
-            return
-        path = item.data(ROLE_PATH)
-        if path:
-            self.item_toggle_select.emit(path)
