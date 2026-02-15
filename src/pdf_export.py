@@ -1,49 +1,44 @@
-"""
-Ash Album — PDF generation using ReportLab.
-"""
-
-from __future__ import annotations
-
-from datetime import datetime
 from pathlib import Path
-
+from datetime import datetime
 from PIL import Image as PILImage
-from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
+from reportlab.lib.colors import black
 
 
 def generate_pdf(image_paths: list[str], output_path: str | Path) -> Path:
-    """
-    Create a PDF where each image occupies a separate A4 page,
-    centred with its aspect ratio preserved.
-    """
     output_path = Path(output_path)
-    c = canvas.Canvas(str(output_path), pagesize=A4)
-    page_w, page_h = A4
-    margin = 36  # 0.5 inch
 
-    usable_w = page_w - 2 * margin
-    usable_h = page_h - 2 * margin
+    # First pass: find maximum width
+    max_width = 0
+    sizes = []
 
-    for idx, img_path in enumerate(image_paths):
+    for p in image_paths:
         try:
-            with PILImage.open(img_path) as img:
-                img_w, img_h = img.size
+            with PILImage.open(p) as img:
+                w, h = img.size
+                sizes.append((p, w, h))
+                max_width = max(max_width, w)
         except Exception:
             continue
 
-        scale = min(usable_w / img_w, usable_h / img_h)
-        draw_w = img_w * scale
-        draw_h = img_h * scale
-        x = margin + (usable_w - draw_w) / 2
-        y = margin + (usable_h - draw_h) / 2
+    c = canvas.Canvas(str(output_path))
 
-        c.drawImage(
-            img_path, x, y, draw_w, draw_h,
-            preserveAspectRatio=True, mask="auto",
-        )
+    for idx, (img_path, w, h) in enumerate(sizes):
 
-        if idx < len(image_paths) - 1:
+        # Page size = widest image x current image height
+        c.setPageSize((max_width, h))
+
+        # Paint black background
+        c.setFillColor(black)
+        c.rect(0, 0, max_width, h, stroke=0, fill=1)
+
+        # Center image horizontally
+        x = (max_width - w) / 2
+
+        # Draw image (no scaling)
+        c.drawImage(img_path, x, 0, width=w, height=h, mask="auto")
+
+        if idx < len(sizes) - 1:
             c.showPage()
 
     c.save()
@@ -51,5 +46,4 @@ def generate_pdf(image_paths: list[str], output_path: str | Path) -> Path:
 
 
 def auto_filename() -> str:
-    """Generate timestamped default filename."""
     return f"AshAlbum_{datetime.now().strftime('%Y-%m-%d_%H%M%S')}.pdf"
