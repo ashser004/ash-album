@@ -854,7 +854,7 @@ class MainWindow(QMainWindow):
         save_path, _ = QFileDialog.getSaveFileName(
             self,
             "Save PDF",
-            str(Path.home() / "Documents" / default_name),
+            str(Path.home() / "Downloads" / default_name),
             "PDF Files (*.pdf)",
         )
         if not save_path:
