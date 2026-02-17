@@ -40,13 +40,13 @@ class ViewerWindow(QDialog):
         self,
         items: list[str],
         start_index: int,
-        selected_set: set[str],
+        selected_list: list[str],
         parent=None,
     ):
         # ── Initialise data BEFORE anything that can trigger resizeEvent ──
         self._items = items
         self._idx = max(0, min(start_index, len(items) - 1))
-        self._selected = selected_set
+        self._selected = selected_list
         self._ready = False  # guard for resizeEvent
         self._current_pixmap: QPixmap | None = None
         self._is_video = False
@@ -148,6 +148,7 @@ class ViewerWindow(QDialog):
         _S = self._viewer_btn
 
         self._btn_select = _S("Select", bg="#7c5cfc", hover="#9b7dff")
+        self._btn_select.setMinimumWidth(100)  # Ensure minimum width for changing text
         self._btn_select.clicked.connect(self._on_select)
 
         self._btn_crop = _S("Crop", bg="#3d5afe", hover="#536dfe")
@@ -251,7 +252,11 @@ class ViewerWindow(QDialog):
 
         # Button states
         is_sel = path in self._selected
-        self._btn_select.setText("Deselect ✓" if is_sel else "Select")
+        if is_sel:
+            page_num = self._selected.index(path) + 1
+            self._btn_select.setText(f"Deselect ✓  (Page {page_num})")
+        else:
+            self._btn_select.setText("Select")
         self._btn_crop.setVisible(not self._is_video)
         self._btn_play.setVisible(self._is_video)
 
@@ -407,7 +412,7 @@ class ViewerWindow(QDialog):
             return
         self.request_add_pdf.emit(path)
         if path not in self._selected:
-            self._selected.add(path)
+            self._selected.append(path)
         self._show_current()
 
     # ────────────────── resize ──────────────────

@@ -81,7 +81,7 @@ class MainWindow(QMainWindow):
 
         # ---- data stores ----
         self._all_items: list[MediaItem] = []
-        self._selected_paths: set[str] = set()
+        self._selected_paths: list[str] = []  # Ordered list to preserve selection order
         self._thumb_cache: dict[str, QPixmap] = {}  # path → QPixmap
         self._current_tab: str = TAB_ALL
         self._current_sort: str = "modified_desc"
@@ -571,7 +571,8 @@ class MainWindow(QMainWindow):
         if pm:
             gallery.set_thumbnail_pixmap(item.path, pm)
         if item.path in self._selected_paths:
-            gallery.set_selection(item.path, True)
+            order = self._selected_paths.index(item.path) + 1
+            gallery.set_selection(item.path, True, order)
 
     @staticmethod
     def _group_by_date(
@@ -680,12 +681,21 @@ class MainWindow(QMainWindow):
 
     def _toggle_select(self, path: str):
         if path in self._selected_paths:
-            self._selected_paths.discard(path)
+            self._selected_paths.remove(path)
+            # Update order numbers for all remaining selections
+            self._update_all_selection_orders()
         else:
-            self._selected_paths.add(path)
-        self._gallery.toggle_selection(path)
-        self._folder_gallery.toggle_selection(path)
+            self._selected_paths.append(path)
+            order = len(self._selected_paths)
+            self._gallery.set_selection(path, True, order)
+            self._folder_gallery.set_selection(path, True, order)
         self._update_sel_label()
+
+    def _update_all_selection_orders(self):
+        """Update selection order on all galleries after reordering."""
+        self._gallery.update_all_selection_orders(self._selected_paths)
+        self._folder_gallery.update_all_selection_orders(self._selected_paths)
+        self._hidden_gallery.update_all_selection_orders(self._selected_paths)
 
     def _clear_selection(self):
         self._selected_paths.clear()
@@ -740,14 +750,17 @@ class MainWindow(QMainWindow):
 
     def _viewer_toggle_select(self, path: str):
         if path in self._selected_paths:
-            self._selected_paths.discard(path)
+            self._selected_paths.remove(path)
+            # Update order numbers for all remaining selections
+            self._update_all_selection_orders()
         else:
-            self._selected_paths.add(path)
-        # Update galleries if item visible
-        if self._gallery.path_exists(path):
-            self._gallery.set_selection(path, path in self._selected_paths)
-        if self._folder_gallery.path_exists(path):
-            self._folder_gallery.set_selection(path, path in self._selected_paths)
+            self._selected_paths.append(path)
+            order = len(self._selected_paths)
+            # Update galleries if item visible
+            if self._gallery.path_exists(path):
+                self._gallery.set_selection(path, True, order)
+            if self._folder_gallery.path_exists(path):
+                self._folder_gallery.set_selection(path, True, order)
         self._update_sel_label()
 
     def _viewer_add_pdf(self, path: str):
@@ -755,11 +768,13 @@ class MainWindow(QMainWindow):
         ext = Path(path).suffix.lower()
         if ext in VIDEO_EXTENSIONS:
             return
-        self._selected_paths.add(path)
-        if self._gallery.path_exists(path):
-            self._gallery.set_selection(path, True)
-        if self._folder_gallery.path_exists(path):
-            self._folder_gallery.set_selection(path, True)
+        if path not in self._selected_paths:
+            self._selected_paths.append(path)
+            order = len(self._selected_paths)
+            if self._gallery.path_exists(path):
+                self._gallery.set_selection(path, True, order)
+            if self._folder_gallery.path_exists(path):
+                self._folder_gallery.set_selection(path, True, order)
         self._update_sel_label()
 
     # ================================================================
@@ -802,7 +817,10 @@ class MainWindow(QMainWindow):
     def _remove_item(self, path: str):
         """Remove an item from all data structures."""
         self._all_items = [i for i in self._all_items if i.path != path]
-        self._selected_paths.discard(path)
+        if path in self._selected_paths:
+            self._selected_paths.remove(path)
+            # Update all galleries with new order numbers
+            self._update_all_selection_orders()
         self._gallery.remove_by_path(path)
         self._hidden_gallery.remove_by_path(path)
         self._folder_gallery.remove_by_path(path)

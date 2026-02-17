@@ -40,6 +40,7 @@ ROLE_MEDIA_TYPE = Qt.ItemDataRole.UserRole + 2
 ROLE_LOADED = Qt.ItemDataRole.UserRole + 3
 ROLE_APP_SELECTED = Qt.ItemDataRole.UserRole + 4
 ROLE_DATE_HEADER = Qt.ItemDataRole.UserRole + 5
+ROLE_SELECTION_ORDER = Qt.ItemDataRole.UserRole + 6  # 1-based order number
 
 DATE_HEADER_H = 44
 
@@ -165,17 +166,28 @@ class ThumbnailDelegate(QStyledItemDelegate):
             tri.closeSubpath()
             painter.drawPath(tri)
 
-        # --- selection checkmark ---
+        # --- selection order number badge ---
         if app_sel:
-            cs = 24
-            cxp = thumb_rect.right() - cs + 4
+            order_num = index.data(ROLE_SELECTION_ORDER) or 0
+            # Dynamic badge size based on number of digits
+            num_str = str(order_num)
+            base_size = 24
+            extra_width = max(0, (len(num_str) - 1) * 8)
+            badge_w = base_size + extra_width
+            badge_h = base_size
+            cxp = thumb_rect.right() - badge_w + 4
             cyp = thumb_rect.y() - 2
-            circle = QPainterPath()
-            circle.addEllipse(float(cxp), float(cyp), float(cs), float(cs))
-            painter.fillPath(circle, QBrush(QColor("#7c5cfc")))
-            painter.setPen(QPen(QColor("#ffffff"), 2.2))
-            painter.drawLine(cxp + 6, cyp + 12, cxp + 10, cyp + 17)
-            painter.drawLine(cxp + 10, cyp + 17, cxp + 18, cyp + 7)
+            badge = QPainterPath()
+            badge.addRoundedRect(float(cxp), float(cyp), float(badge_w), float(badge_h), 12.0, 12.0)
+            painter.fillPath(badge, QBrush(QColor("#7c5cfc")))
+            # Draw the selection order number
+            painter.setPen(QColor("#ffffff"))
+            painter.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+            painter.drawText(
+                QRect(int(cxp), int(cyp), int(badge_w), int(badge_h)),
+                Qt.AlignmentFlag.AlignCenter,
+                num_str,
+            )
 
         # --- filename text ---
         text_rect = QRect(rect.x() + 6, thumb_rect.bottom() + 4, rect.width() - 12, 28)
@@ -246,6 +258,7 @@ class GalleryWidget(QListWidget):
         item.setData(ROLE_MEDIA_TYPE, media_type)
         item.setData(ROLE_LOADED, False)
         item.setData(ROLE_APP_SELECTED, False)
+        item.setData(ROLE_SELECTION_ORDER, 0)
         item.setSizeHint(ITEM_SIZE)
         self.addItem(item)
         self._path_items[path] = item
@@ -267,15 +280,37 @@ class GalleryWidget(QListWidget):
         if item:
             cur = bool(item.data(ROLE_APP_SELECTED))
             item.setData(ROLE_APP_SELECTED, not cur)
+            if cur:  # Was selected, now deselecting - clear order
+                item.setData(ROLE_SELECTION_ORDER, 0)
             self.viewport().update()
             return not cur
         return False
 
-    def set_selection(self, path: str, selected: bool):
+    def set_selection(self, path: str, selected: bool, order: int = 0):
         item = self._path_items.get(path)
         if item:
             item.setData(ROLE_APP_SELECTED, selected)
+            item.setData(ROLE_SELECTION_ORDER, order if selected else 0)
             self.viewport().update()
+
+    def set_selection_order(self, path: str, order: int):
+        """Update just the selection order for a path."""
+        item = self._path_items.get(path)
+        if item:
+            item.setData(ROLE_SELECTION_ORDER, order)
+            self.viewport().update()
+
+    def update_all_selection_orders(self, ordered_paths: list[str]):
+        """Update selection order for all items based on the ordered list."""
+        for path, item in self._path_items.items():
+            if path in ordered_paths:
+                order = ordered_paths.index(path) + 1  # 1-based
+                item.setData(ROLE_APP_SELECTED, True)
+                item.setData(ROLE_SELECTION_ORDER, order)
+            else:
+                item.setData(ROLE_APP_SELECTED, False)
+                item.setData(ROLE_SELECTION_ORDER, 0)
+        self.viewport().update()
 
     def get_selected_paths(self) -> list[str]:
         return [
@@ -287,6 +322,7 @@ class GalleryWidget(QListWidget):
     def clear_all_selection(self):
         for i in range(self.count()):
             self.item(i).setData(ROLE_APP_SELECTED, False)
+            self.item(i).setData(ROLE_SELECTION_ORDER, 0)
         self.viewport().update()
 
     def remove_by_path(self, path: str):
