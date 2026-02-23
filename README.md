@@ -1,403 +1,148 @@
-# 📸 Ash Album — Image & Video Gallery
+Ash Album
+=========
 
-A sleek, fast, dark-themed media gallery and PDF creator for Windows. Organize, view, edit, and export your photos and videos with ease.
+Ash Album is a fast, dark-themed media gallery and PDF creator for Windows. It helps you browse photos and videos, open a full-screen viewer, crop images, hide files, and export selected images to PDF.
 
-**Version:** 1.1.2
+Version: 1.1.2
 
----
+Overview
+--------
 
-## 🚀 Quick Start
+- Browse photos and videos in a clean, modern gallery.
+- Open a full-screen viewer with navigation and actions.
+- Select multiple images and generate a PDF (A4 or original size).
+- Hide files to a private folder and restore them later.
+- Set Ash Album as the default app to open images from Explorer.
 
-### Installation
+Quick Start (PDF First)
+-----------------------
 
-1. Download the latest `Ash Album.exe` from the releases folder
-2. Run the executable — it will auto-detect your picture libraries
-3. On first run, you'll be asked to select your media folders
+1. Open Ash Album.
+2. Select images:
+   - In the gallery: Ctrl + Click thumbnails.
+   - In the viewer: click an image, then press Select.
+3. Click Generate PDF.
+4. Choose the page size:
+   - A4: scales each image to fit a standard A4 page.
+   - Default: each page matches the original image size.
+5. Choose the save location and confirm.
 
-### Running from Source
+Installation
+------------
+
+Run the executable:
+
+- Launch Ash Album.exe.
+- On first run, choose your media folders.
+
+Run from source:
 
 ```bash
 pip install -r requirements.txt
 python main.py
 ```
 
----
+Features
+--------
 
-## ✨ Features
+- Gallery view with tabs and sorting.
+- Full-screen viewer with keyboard navigation.
+- Crop, delete, hide, and add to PDF from the viewer.
+- Folder-based navigation and hidden media view.
+- PDF export with page size choice.
+- File association for double-click opening.
+- Thumbnail cache for faster loading.
 
-- **Gallery View** — Browse all your photos & videos in a beautiful dark theme
-- **Tabs & Organization** — Filter by type, date, folder, or status (hidden)
-- **Full-Featured Viewer** — Navigate, select, crop, hide, delete from full-screen view
-- **PDF Export** — Create PDFs with A4 or original-size pages
-- **File Association** — Double-click images in Explorer to open them directly
-- **Hide Files** — Private folder for sensitive images (password-free, stored locally)
-- **Thumbnail Cache** — Lightning-fast loading with cached previews
-- **Keyboard Shortcuts** — Arrow keys, Escape, Space — all the essentials
+Using the App
+-------------
 
----
+Gallery
+- Tabs: All, Photos, Videos, Recent, Screenshots, Folders, Hidden.
+- Sort: name, created date, modified date, file size (ascending/descending).
+- Selection: Ctrl + Click thumbnails to select multiple images.
 
-## 📖 User Guide
+Viewer
+- Open a thumbnail to view full-screen.
+- Use left/right arrows or the on-screen buttons to navigate.
+- Actions: Select, Crop (images only), Delete, Hide, Add to PDF.
+- Videos: Play/Pause with Space.
 
-### 🎯 Main Interface
+Cropping
+- Open an image in the viewer and click Crop.
+- Draw the selection and confirm.
+- The cropped image is saved in the same folder.
 
-The app opens with a clean interface:
+Hidden Files
+- Click Hide in the viewer to move a file to the hidden folder.
+- Open the Hidden tab to view and restore hidden files.
 
-```html
-<div style="background: linear-gradient(135deg, #0b0b12 0%, #1a1a28 100%); color: #ededf4; 
-            padding: 20px; border-radius: 12px; font-family: 'Segoe UI', Arial; 
-            border: 1px solid #2a2a3e; line-height: 1.6;">
-  
-  <div style="display: flex; justify-content: space-between; align-items: center; 
-              padding-bottom: 15px; border-bottom: 1px solid #2a2a3e;">
-    <div style="font-size: 20px; font-weight: bold; letter-spacing: 1px;">ASH ALBUM</div>
-    <div style="display: flex; gap: 12px;">
-      <button style="background: #232336; color: #ededf4; border: 1px solid #2a2a3e; 
-                     border-radius: 6px; padding: 8px 16px; cursor: pointer; font-size: 12px; font-weight: 600;">
-        ⟳ Refresh
-      </button>
-      <div style="color: #8686a4; font-size: 12px;">
-        Sort: <span style="color: #7c5cfc;">Date Modified (Newest First)</span>
-      </div>
-    </div>
-  </div>
+Default App for Images (Windows)
+-------------------------------
 
-  <div style="display: flex; gap: 8px; padding: 12px 0; border-bottom: 1px solid #2a2a3e; 
-              overflow-x: auto; font-size: 12px; font-weight: 600;">
-    <button style="background: #7c5cfc; color: #fff; border: none; border-radius: 6px; 
-                   padding: 8px 14px; cursor: pointer;">ALL</button>
-    <button style="background: #1a1a28; color: #8686a4; border: 1px solid #2a2a3e; 
-                   border-radius: 6px; padding: 8px 14px; cursor: pointer;">PHOTOS</button>
-    <button style="background: #1a1a28; color: #8686a4; border: 1px solid #2a2a3e; 
-                   border-radius: 6px; padding: 8px 14px; cursor: pointer;">VIDEOS</button>
-    <button style="background: #1a1a28; color: #8686a4; border: 1px solid #2a2a3e; 
-                   border-radius: 6px; padding: 8px 14px; cursor: pointer;">RECENT</button>
-    <button style="background: #1a1a28; color: #8686a4; border: 1px solid #2a2a3e; 
-                   border-radius: 6px; padding: 8px 14px; cursor: pointer;">FOLDERS</button>
-    <button style="background: #1a1a28; color: #8686a4; border: 1px solid #2a2a3e; 
-                   border-radius: 6px; padding: 8px 14px; cursor: pointer;">HIDDEN</button>
-  </div>
+Method 1: Open with
+1. Right-click any .jpg, .jpeg, or .png file.
+2. Choose Open with > Choose another app.
+3. Select Ash Album and check Always use this app.
 
-  <div style="margin: 16px 0; height: 200px; background: #111119; border: 1px solid #2a2a3e; 
-              border-radius: 8px; display: flex; align-items: center; justify-content: center; 
-              color: #8686a4; font-size: 14px;">
-    🖼️ Gallery Grid (Thumbnails appear here)
-  </div>
+Method 2: Settings
+1. Open Settings (Win + I).
+2. Go to Apps > Default apps.
+3. Search for .jpg, .jpeg, .png, etc., and set Ash Album for each.
 
-  <div style="display: flex; justify-content: space-between; align-items: center; 
-              padding-top: 12px; border-top: 1px solid #2a2a3e; font-size: 12px;">
-    <div style="color: #7c5cfc; font-weight: 600;">0 selected</div>
-    <div style="color: #8686a4;">1,243 files found • 18 folders</div>
-  </div>
-  
-  <div style="display: flex; gap: 12px; margin-top: 12px; justify-content: flex-end;">
-    <button style="background: #232336; color: #ededf4; border: 1px solid #2a2a3e; 
-                   border-radius: 6px; padding: 6px 12px; cursor: pointer; font-size: 11px; font-weight: 600;">
-      Clear
-    </button>
-    <button style="background: #ef5350; color: #fff; border: none; 
-                   border-radius: 6px; padding: 6px 12px; cursor: pointer; font-size: 11px; font-weight: 600;">
-      Delete Selected
-    </button>
-    <button style="background: #7c5cfc; color: #fff; border: none; 
-                   border-radius: 6px; padding: 8px 24px; cursor: pointer; font-size: 13px; font-weight: 700;">
-      Generate PDF
-    </button>
-  </div>
-</div>
+When set as the default app:
+- Double-clicking an image opens Ash Album directly.
+- The viewer shows only images from the same folder.
+- All viewer features are available.
+
+Optional: Default App for Videos
+--------------------------------
+
+Ash Album can open videos, but subtitle support is limited. If you still want it:
+
+1. Go to Settings > Apps > Default apps.
+2. Set Ash Album for .mp4 and .mkv.
+
+Keyboard Shortcuts
+------------------
+
+- Left / Right Arrow: Previous / Next image in viewer
+- Escape: Close viewer
+- Space: Play/Pause video
+- Ctrl + Click: Select thumbnail in gallery
+
+Folders Scanned by Default
+--------------------------
+
+- Pictures
+- Videos
+- Desktop
+- Downloads
+- OneDrive equivalents (if available)
+
+App Data Location
+-----------------
+
+Ash Album stores settings, cache, and hidden files here:
+
+```
+C:\Users\YourUsername\Documents\AshAlbum\
+  config.json
+  cache\
+  hidden\
 ```
 
----
+Troubleshooting
+---------------
 
-### 1️⃣ **Selecting Images & Creating a PDF** (Quickstart)
+- App does not open on double-click: set Ash Album as the default app for .jpg/.jpeg/.png.
+- Thumbnails are slow: click Refresh to rebuild cache.
+- Video playback fails: install missing codecs or use a dedicated video player.
+- PDF generation fails: check file permissions and free disk space.
 
-#### Step 1: Browse to Images
-- Open **Ash Album**
-- Use the **tab bar** to filter (ALL, PHOTOS, VIDEOS, etc.)
-- Scroll through the gallery grid
+License
+-------
 
-#### Step 2: Select Images
-You can select images in **two ways**:
-
-**Method A: Gallery view (Ctrl+Click)**
-```
-• Ctrl + Click a thumbnail to select it
-• The thumbnail gets a checkmark with a number (selection order)
-• Repeat for more images
-```
-
-**Method B: Viewer (Full-Screen)**
-```
-• Click on any thumbnail to open the full-screen viewer
-• Press the "Select" button to toggle selection
-• Navigate with arrow keys or next/previous buttons
-• When selected, the button changes to "Deselect ✓ (Page X)"
-```
-
-Visual example of a selected image in gallery:
-
-```html
-<div style="display: inline-block; position: relative; width: 180px; height: 180px; 
-            background: #1a1a28; border: 2px solid #7c5cfc; border-radius: 8px; 
-            overflow: hidden; margin: 10px;">
-  <div style="width: 100%; height: 100%; background: linear-gradient(135deg, #7c5cfc, #536dfe); 
-              display: flex; align-items: center; justify-content: center; color: #fff; font-size: 64px;">
-    🖼️
-  </div>
-  <div style="position: absolute; top: 8px; right: 8px; background: #7c5cfc; 
-              color: #fff; width: 28px; height: 28px; border-radius: 50%; 
-              display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px;">
-    1
-  </div>
-  <div style="position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.6); 
-              color: #fff; padding: 6px; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-    vacation-pic.jpg
-  </div>
-</div>
-```
-
-#### Step 3: Generate PDF
-- Click the **"Generate PDF"** button (purple, bottom-right)
-- A dialog appears asking for page size:
-
-```html
-<div style="background: #1a1a28; color: #ededf4; padding: 24px; border: 1px solid #2a2a3e; 
-            border-radius: 12px; max-width: 500px; font-family: 'Segoe UI', Arial; text-align: center;">
-  <div style="font-size: 18px; font-weight: 700; margin-bottom: 12px;">PDF Page Size</div>
-  <div style="color: #8686a4; font-size: 13px; line-height: 1.6; margin-bottom: 20px;">
-    <strong style="color: #ededf4;">A4</strong> — Each image is scaled to fit a standard A4 page 
-    (210 × 297 mm). Ideal for <strong>printing</strong>.<br><br>
-    <strong style="color: #ededf4;">Default</strong> — Each page matches the original image dimensions. 
-    Best for <strong>digital viewing</strong> at full quality.
-  </div>
-  <div style="display: flex; gap: 12px; justify-content: center;">
-    <button style="background: #7c5cfc; color: #fff; border: none; border-radius: 6px; 
-                   padding: 8px 24px; cursor: pointer; font-weight: 600;">A4</button>
-    <button style="background: #7c5cfc; color: #fff; border: none; border-radius: 6px; 
-                   padding: 8px 24px; cursor: pointer; font-weight: 600;">Default</button>
-    <button style="background: #232336; color: #ededf4; border: 1px solid #2a2a3e; 
-                   border-radius: 6px; padding: 8px 24px; cursor: pointer; font-weight: 600;">Cancel</button>
-  </div>
-</div>
-```
-
-- Choose **A4** (for printing) or **Default** (for viewing)
-- Pick a save location (defaults to Downloads folder)
-- ✅ PDF created!
-
----
-
-### 2️⃣ **Double-Click to Open Image** (File Association)
-
-The best way to use Ash Album is to set it as your default image viewer.
-
-#### In Explorer:
-```
-Right-click an image (JPG, PNG, etc.)
-→ "Open with" or "Open with..."
-→ "Choose another app"
-→ Select "Ash Album"
-→ Check "Always use this app"
-→ Click OK
-```
-
-Now **double-clicking any image** will:
-1. ✅ Open **Ash Album viewer** directly to that image
-2. ✅ Show **only images from that folder** (left/right arrows)
-3. ✅ Enable all features: **Select, Crop, Delete, Hide, Add to PDF, Generate PDF**
-
-**Example:**
-```
-My Pictures/
-  ├── vacation-2024/
-  │   ├── beach.jpg       ← Double-click this
-  │   ├── sunset.jpg
-  │   ├── family.png
-  │   └── group.jpg
-
-Opens viewer with:
-  • Starts on beach.jpg
-  • Arrows navigate: beach → sunset → family → group → beach (loops)
-  • Only these 4 files shown
-  • All editing features available
-  • Can select and generate PDF from these 4 images only
-```
-
----
-
-### 3️⃣ **Full-Screen Viewer** (All Features)
-
-Click any thumbnail to open the full-screen viewer:
-
-```html
-<div style="background: #0b0b12; color: #ededf4; padding: 20px; border-radius: 12px; 
-            font-family: 'Segoe UI', Arial; min-height: 400px;">
-  
-  <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 20px;">
-    <button style="background: transparent; color: #8686a4; font-size: 26px; cursor: pointer; 
-                   padding: 0 12px; border: none;">❮</button>
-    <div style="flex: 1; height: 300px; background: #111119; border: 1px solid #2a2a3e; 
-                border-radius: 8px; display: flex; align-items: center; justify-content: center; 
-                font-size: 14px; color: #8686a4;">
-      📸 Image Display Area
-    </div>
-    <button style="background: transparent; color: #8686a4; font-size: 26px; cursor: pointer; 
-                   padding: 0 12px; border: none;">❯</button>
-  </div>
-
-  <div style="background: #111119; border: 1px solid #2a2a3e; padding: 12px 16px; 
-              border-radius: 6px; text-align: center; color: #8686a4; font-size: 11px; margin-bottom: 16px;">
-    photo.jpg  •  2.3 MB  •  1 / 42
-  </div>
-
-  <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
-    <button style="background: #7c5cfc; color: #fff; border: none; border-radius: 8px; 
-                   padding: 6px 22px; font-weight: 700; font-size: 12px; cursor: pointer;">
-      Select
-    </button>
-    <button style="background: #3d5afe; color: #fff; border: none; border-radius: 8px; 
-                   padding: 6px 22px; font-weight: 700; font-size: 12px; cursor: pointer;">
-      Crop
-    </button>
-    <button style="background: #ef5350; color: #fff; border: none; border-radius: 8px; 
-                   padding: 6px 22px; font-weight: 700; font-size: 12px; cursor: pointer;">
-      Delete
-    </button>
-    <button style="background: #ff9800; color: #fff; border: none; border-radius: 8px; 
-                   padding: 6px 22px; font-weight: 700; font-size: 12px; cursor: pointer;">
-      Hide
-    </button>
-    <button style="background: #43c667; color: #fff; border: none; border-radius: 8px; 
-                   padding: 6px 22px; font-weight: 700; font-size: 12px; cursor: pointer;">
-      Add to PDF
-    </button>
-  </div>
-</div>
-```
-
-#### Viewer Controls:
-
-| Button | Shortcut | Action |
-|--------|----------|--------|
-| **❮ ❯** (Navigation) | ← → (Arrow Keys) | Move to previous/next image |
-| **Select** | - | Add/remove current image to selection |
-| **Crop** | - | Open crop tool (images only) |
-| **Delete** | - | Move to Recycle Bin |
-| **Hide** | - | Move to private hidden folder |
-| **Add to PDF** | - | Select for PDF export |
-| **Esc** | Escape | Close viewer |
-| **Play/Pause** | Space | Play/pause video (videos only) |
-
----
-
-### 4️⃣ **Cropping Images**
-
-In the full-screen viewer, click the **Crop** button:
-
-1. **Draw rectangle** on the image to select the area you want to keep
-2. **Crop** button applies the crop
-3. **Cancel** to discard
-4. Saved image appears in the **same folder** with a timestamped name
-5. Thumbnail regenerates automatically
-
----
-
-### 5️⃣ **Hiding Files**
-
-Click the **Hide** button to move files to a private folder (stored locally in your AshAlbum data folder).
-
-To access hidden files:
-- Click the **HIDDEN** tab in the main gallery
-- All hidden files appear here
-- Click **Unhide** in the viewer to restore a file to its original location
-
----
-
-### 6️⃣ **Sorting & Organization**
-
-#### Sort Options:
-- Name (A → Z / Z → A)
-- Date Created (Newest/Oldest First)
-- Date Modified (Newest/Oldest First)
-- File Size (Small → Large / Large → Small)
-
-#### Tabs:
-| Tab | Shows |
-|-----|-------|
-| **ALL** | Every photo & video found |
-| **PHOTOS** | .jpg, .jpeg, .png, .bmp, .webp, .gif |
-| **VIDEOS** | .mp4, .mkv, .mov, .avi, .webm |
-| **RECENT** | Files modified in the last 30 days |
-| **SCREENSHOTS** | Files in Pictures/Screenshots folder |
-| **FOLDERS** | Browse by folder (sidebar shows folder counts) |
-| **HIDDEN** | Files you've marked as private |
-
----
-
-### 7️⃣ **Refreshing**
-
-Click the **⟳ Refresh** button to:
-- Rescan all monitored folders
-- Rebuild thumbnails
-- Update view with new/deleted files
-
----
-
-## 🖥️ Making Ash Album Your Default App
-
-### **For Images (JPG, JPEG, PNG, BMP, WebP, GIF)**
-
-#### Method 1: Right-Click Context Menu (Easiest)
-```
-1. Find any image file in Explorer
-2. Right-click → "Open with" → "Choose another app"
-3. Click "Look for another app on this PC"
-4. Navigate to your Ash Album folder and select "Ash Album.exe"
-5. Check "Always use this app to open ..." 
-6. Click OK
-```
-
-#### Method 2: Settings App (Windows 11/10)
-```
-1. Open Settings (Win + I)
-2. Go to "Apps" → "Default apps"
-3. Scroll down and click on ".jpg" (or .png, .jpeg, .bmp, .webp, .gif)
-4. Click "Choose an app"
-5. If Ash Album doesn't appear, click "Look for another app on this PC"
-6. Navigate to Ash Album.exe and select it
-7. Repeat for each image format:
-   - .jpg / .jpeg
-   - .png
-   - .bmp
-   - .webp
-   - .gif
-```
-
-#### Method 3: File Association (Advanced - Windows Registry)
-
-Save this as `set_ash_album_images.reg` and run it:
-
-```registry
-Windows Registry Editor Version 5.00
-
-[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\.jpg\UserChoice]
-; (Will be set by Windows when you use Method 1 or 2)
-
-[HKEY_CLASSES_ROOT\.jpg]
-@="AshAlbumImage"
-
-[HKEY_CLASSES_ROOT\AshAlbumImage\shell\open\command]
-@="\"C:\\Path\\To\\Ash Album.exe\" \"%%1\""
-
-[HKEY_CLASSES_ROOT\.jpeg]
-@="AshAlbumImage"
-
-[HKEY_CLASSES_ROOT\.png]
-@="AshAlbumImage"
-
-[HKEY_CLASSES_ROOT\.bmp]
-@="AshAlbumImage"
-
-[HKEY_CLASSES_ROOT\.webp]
+See [LICENSE](LICENSE).
 @="AshAlbumImage"
 
 [HKEY_CLASSES_ROOT\.gif]
