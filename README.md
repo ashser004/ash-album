@@ -66,154 +66,72 @@ This transforms how you interact with your photos—no more opening a separate g
 
 ---
 
-## 🏛️ **Application Features**
+## 🏛️ **Core Features**
 
-### **🖼️ Gallery View**
-- **Elegant Dark Theme** — Easy on the eyes, professional appearance
-- **Lightning-Fast Thumbnails** — Cached for instant loading
-- **Smart Organization** — Automatic sorting by date, name, size, or type
-- **Multi-Selection** — Ctrl+Click to select multiple images efficiently
-- **Folder Discovery** — Automatically finds and organizes all your media
+### **🖼️ Gallery & Organization**
+- **Elegant Dark Theme** with lightning-fast cached thumbnails
+- **Smart Tabs:** ALL, PHOTOS, VIDEOS, RECENT, SCREENSHOTS, FOLDERS, HIDDEN
+- **Flexible Sorting:** Date, name, size, type (ascending/descending)
+- **Multi-Selection:** Ctrl+Click for batch operations
+- **Auto-Discovery:** Finds and organizes all your media automatically
 
-### **📱 Intelligent Tabs**
-| Tab | Purpose |
-|-----|---------|
-| **ALL** | Every photo and video in your collection |
-| **PHOTOS** | Images only (JPG, PNG, WEBP, GIF, BMP) |
-| **VIDEOS** | Video files only (MP4, MKV, MOV, AVI, WEBM) |
-| **RECENT** | Files modified in the last 30 days |
-| **SCREENSHOTS** | Automatically detected screenshot folders |
-| **FOLDERS** | Browse by specific folder location |
-| **HIDDEN** | Private files you've hidden |
+### **🔍 Full-Screen Viewer & Editor**
+- **Immersive full-screen experience** with arrow key navigation
+- **Built-in cropping tool** with live preview and auto-save
+- **Instant actions:** Select, crop, delete, hide, add to PDF
+- **Video playback** with play/pause controls (`Space` key)
+- **Privacy mode:** Hide sensitive files to local encrypted folder
 
-### **🔍 Full-Screen Viewer**
-- **Immersive Experience** — Distraction-free full-screen viewing
-- **Smooth Navigation** — Arrow keys or on-screen controls
-- **Instant Actions** — Select, crop, delete, hide with one click
-- **Smart Sizing** — Images scale perfectly to your display
-- **Video Playback** — Built-in player with play/pause controls
-
-### **✂️ Built-in Image Editor**
-- **Intuitive Cropping** — Draw and apply crops instantly
-- **Non-destructive** — Original files remain untouched
-- **Auto-save** — Cropped images saved with timestamps
-- **Live Preview** — See results before applying changes
-
-### **🔒 Privacy Features**
-- **Hide Function** — Move sensitive images to a private folder
-- **Easy Restoration** — Unhide files from the Hidden tab
-- **Local Storage** — Hidden files stay on your computer
-- **No Cloud Dependency** — Complete privacy control
-
-### **📄 Professional PDF Export**
-- **Multi-Image PDFs** — Combine any number of selected images
-- **Page Size Options:**
-  - **A4 Mode** — Perfect for printing (210×297mm standard)
-  - **Original Mode** — Maintains image dimensions for digital viewing
-- **High Quality** — Preserves image clarity and color accuracy
-- **Custom Naming** — Automatic timestamps or custom filenames
+### **📄 Professional PDF Creation**
+- **A4 Mode:** Scales images for standard printing (210×297mm)
+- **Original Mode:** Preserves exact image dimensions
+- **Batch processing:** Combine unlimited selected images
+- **Auto-naming:** Timestamps or custom filenames
 
 ---
 
-## 🎮 **How to Use**
+## 🎮 **Usage Guide**
 
-### **Creating Your First PDF**
-1. **Launch** Ash Album
-2. **Browse** your photos using the tab system
-3. **Select images** by Ctrl+Clicking thumbnails (or use the viewer's Select button)
-4. **Click** the "Generate PDF" button
-5. **Choose** A4 (for printing) or Original (for digital viewing)
-6. **Save** to your preferred location
+### **Quick PDF Creation**
+1. Launch Ash Album → Browse using tabs
+2. Select images (Ctrl+Click thumbnails or use viewer's Select button)  
+3. Click "Generate PDF" → Choose A4 or Original → Save
 
-### **Quick Image Editing**
-1. **Click** any thumbnail to open the full-screen viewer
-2. **Use** arrow keys to navigate between images
-3. **Click** "Crop" to edit the current image
-4. **Draw** your selection area and confirm
-5. **Find** the edited image in the same folder with a timestamp
+### **Image Editing & Management**
+- **View:** Click thumbnail for full-screen viewer (arrow keys to navigate)
+- **Crop:** Click "Crop" → draw selection → confirm  
+- **Privacy:** Click "Hide" to move to private folder → "HIDDEN" tab to restore
+- **Standalone:** Double-click any image in Windows Explorer for instant viewing
 
-### **Managing Private Images**
-1. **Open** an image in the viewer
-2. **Click** "Hide" to move it to your private folder
-3. **Access** hidden images via the "HIDDEN" tab
-4. **Click** "Unhide" in the viewer to restore files
+### **Keyboard Shortcuts**
+`←` `→` Navigate | `Space` Play/Pause | `Escape` Close | `Ctrl+Click` Multi-select
 
-### **Folder-Specific Viewing**
-1. **Double-click** any image in Windows Explorer
-2. **Navigate** through images in that folder only
-3. **Use** all features (crop, select, PDF) on those specific images
-4. **Press** Escape to close when finished
+## 💾 **Technical Details**
 
----
+**Auto-Scanned Folders:** Pictures, Videos, Desktop, Downloads, OneDrive (if available)
 
-## ⌨️ **Keyboard Shortcuts**
-
-| Shortcut | Action |
-|----------|--------|
-| `←` `→` | Navigate between images |
-| `Space` | Play/Pause videos |
-| `Escape` | Close viewer |
-| `Ctrl + Click` | Select multiple thumbnails |
-
----
-
-## 📁 **Smart Folder Management**
-
-Ash Album automatically scans these locations:
-- **Pictures** folder and subfolders
-- **Videos** folder and subfolders  
-- **Desktop** media files
-- **Downloads** folder
-- **OneDrive** Pictures and Videos (if available)
-
-All discovered folders appear in the **FOLDERS** tab with file counts for easy navigation.
-
----
-
-## 💾 **Application Data**
-
-Settings and private files are stored locally:
+**Data Storage:**
 ```
 📁 C:\Users\[YourName]\Documents\AshAlbum\
-   📄 config.json          (App settings)
-   📁 cache\              (Fast-loading thumbnails)
-   📁 hidden\             (Your private images)
+   📄 config.json (settings) | 📁 cache\ (thumbnails) | 📁 hidden\ (private files)
 ```
 
----
-
-## 🎨 **Built for Professionals**
-
-- **Dark Theme** — Reduces eye strain during long editing sessions
-- **High DPI Support** — Crisp on 4K and high-resolution displays  
-- **Memory Efficient** — Smart caching minimizes RAM usage
-- **Fast Scanning** — Quickly indexes large photo collections
-- **Reliable Performance** — Stable operation with thousands of files
+**System Requirements:** Windows 10/11 • 4GB RAM • 100MB disk space
 
 ---
 
-## 📋 **System Requirements**
+## 🆕 **Why Choose Ash Album**
 
-- **Windows 10** or Windows 11
-- **4GB RAM** minimum (8GB recommended for large collections)
-- **100MB** free disk space for installation
-- **Additional space** for thumbnail cache (approx. 1MB per 100 images)
-
----
-
-## 🆕 **What Makes Ash Album Special**
-
-✅ **Instant Opening** — No splash screens or loading delays  
-✅ **True Dark Mode** — Carefully designed for comfort  
-✅ **Smart Organization** — Finds and sorts your media automatically  
+✅ **Instant Opening** — Zero loading delays  
 ✅ **Professional PDF Creation** — Publication-ready output  
-✅ **Privacy First** — Hidden files stay completely local  
-✅ **Seamless Integration** — Works perfectly with Windows Explorer  
-✅ **Zero Bloat** — Only the features you actually need  
+✅ **Complete Privacy Control** — Hidden files stay local  
+✅ **Windows Explorer Integration** — Works seamlessly with double-click  
+✅ **Memory Efficient** — Smart caching for large collections  
+✅ **High DPI Ready** — Crisp on 4K displays  
 
 ---
 
-*Transform your photo viewing experience. Download Ash Album today.*
+*Experience the future of photo viewing. Download Ash Album today.*
 @="AshAlbumImage"
 
 [HKEY_CLASSES_ROOT\.gif]
