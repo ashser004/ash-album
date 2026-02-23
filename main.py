@@ -27,10 +27,22 @@ from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont, QIcon
 
-from src.config import AppConfig
+from src.config import AppConfig, ALL_EXTENSIONS
 from src.theme import get_stylesheet
 from src.first_run import FirstRunDialog
 from src.main_window import MainWindow
+
+
+def _get_file_arg():
+    """Return an absolute image/video path from sys.argv, or None."""
+    if len(sys.argv) < 2:
+        return None
+    candidate = sys.argv[1]
+    if os.path.isfile(candidate):
+        ext = os.path.splitext(candidate)[1].lower()
+        if ext in ALL_EXTENSIONS:
+            return os.path.abspath(candidate)
+    return None
 
 
 def main():
@@ -56,19 +68,32 @@ def main():
     if os.path.isfile(icon_path):
         app.setWindowIcon(QIcon(icon_path))
 
+    # Check for file-association launch (double-click an image in Explorer)
+    file_arg = _get_file_arg()
+
     # Configuration
     config = AppConfig()
-    if config.is_first_run():
-        dlg = FirstRunDialog(config)
-        if dlg.exec() == 0:  # rejected / closed
-            sys.exit(0)
-    else:
-        config.load()
-        config.save()  # ensure dirs exist
+    if file_arg:
+        # Standalone viewer mode — silently ensure config exists
+        if not config.is_first_run():
+            config.load()
+        config.save()
 
-    # Main window
-    window = MainWindow(config)
-    window.show()
+        from src.standalone_viewer import StandaloneViewer
+        controller = StandaloneViewer(file_arg, config)
+    else:
+        # Normal gallery mode
+        if config.is_first_run():
+            dlg = FirstRunDialog(config)
+            if dlg.exec() == 0:  # rejected / closed
+                sys.exit(0)
+        else:
+            config.load()
+            config.save()  # ensure dirs exist
+
+        # Main window
+        window = MainWindow(config)
+        window.show()
 
     sys.exit(app.exec())
 

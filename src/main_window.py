@@ -868,6 +868,11 @@ class MainWindow(QMainWindow):
             )
             return
 
+        # Ask page size
+        page_mode = self._ask_pdf_page_size()
+        if not page_mode:
+            return
+
         default_name = auto_filename()
         save_path, _ = QFileDialog.getSaveFileName(
             self,
@@ -882,13 +887,36 @@ class MainWindow(QMainWindow):
             save_path = str(Path(save_path).parent / default_name)
 
         try:
-            generate_pdf(images, save_path)
+            generate_pdf(images, save_path, page_mode=page_mode)
             QMessageBox.information(
                 self, "PDF Created",
                 f"Saved {len(images)} image(s) to:\n{save_path}",
             )
         except Exception as exc:
             QMessageBox.warning(self, "Error", f"PDF generation failed:\n{exc}")
+
+    def _ask_pdf_page_size(self) -> str | None:
+        """Show dialog to choose PDF page size. Returns 'a4', 'default', or None."""
+        msg = QMessageBox(self)
+        msg.setWindowTitle("PDF Page Size")
+        msg.setText("Choose the PDF page size:")
+        msg.setInformativeText(
+            "A4 \u2014 Each image is scaled to fit a standard A4 page "
+            "(210 \u00d7 297 mm). Ideal for printing.\n\n"
+            "Default \u2014 Each page matches the original image dimensions. "
+            "Best for digital viewing at full quality."
+        )
+        btn_a4 = msg.addButton("A4", QMessageBox.ButtonRole.AcceptRole)
+        btn_default = msg.addButton("Default", QMessageBox.ButtonRole.AcceptRole)
+        msg.addButton(QMessageBox.StandardButton.Cancel)
+        msg.exec()
+
+        clicked = msg.clickedButton()
+        if clicked == btn_a4:
+            return "a4"
+        if clicked == btn_default:
+            return "default"
+        return None
 
     # ================================================================
     #  Bulk delete selected

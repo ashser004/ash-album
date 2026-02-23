@@ -34,6 +34,7 @@ class ViewerWindow(QDialog):
     request_delete = Signal(str)        # delete
     request_hide = Signal(str)          # hide
     request_add_pdf = Signal(str)       # add to PDF selection
+    request_generate_pdf = Signal()     # generate PDF (standalone mode)
     closed = Signal()
 
     def __init__(
@@ -167,9 +168,14 @@ class ViewerWindow(QDialog):
         self._btn_pdf = _S("Add to PDF", bg="#43c667", hover="#50d870")
         self._btn_pdf.clicked.connect(self._on_add_pdf)
 
+        self._btn_gen_pdf = _S("Generate PDF", bg="#7c5cfc", hover="#9b7dff")
+        self._btn_gen_pdf.clicked.connect(self._on_generate_pdf)
+        self._btn_gen_pdf.hide()  # shown only in standalone mode
+
         bar_lay.addStretch()
         for b in (self._btn_select, self._btn_crop, self._btn_play,
-                  self._btn_delete, self._btn_hide, self._btn_pdf):
+                  self._btn_delete, self._btn_hide, self._btn_pdf,
+                  self._btn_gen_pdf):
             bar_lay.addWidget(b)
         bar_lay.addStretch()
 
@@ -414,6 +420,15 @@ class ViewerWindow(QDialog):
         if path not in self._selected:
             self._selected.append(path)
         self._show_current()
+
+    # ────────────────── standalone mode ──────────────────
+
+    def set_standalone_mode(self, standalone: bool):
+        """Show/hide controls that are only needed in standalone (file-association) mode."""
+        self._btn_gen_pdf.setVisible(standalone)
+
+    def _on_generate_pdf(self):
+        self.request_generate_pdf.emit()
 
     # ────────────────── resize ──────────────────
 

@@ -3,11 +3,29 @@ from datetime import datetime
 from PIL import Image as PILImage
 from reportlab.pdfgen import canvas
 from reportlab.lib.colors import black
+from reportlab.lib.pagesizes import A4
 
 
-def generate_pdf(image_paths: list[str], output_path: str | Path) -> Path:
+def generate_pdf(
+    image_paths: list[str],
+    output_path: str | Path,
+    page_mode: str = "default",
+) -> Path:
+    """
+    Generate a PDF from a list of image paths.
+
+    page_mode:
+        "default" — each page size matches the image (original behaviour).
+        "a4"      — each page is A4; images are scaled to fit.
+    """
     output_path = Path(output_path)
+    if page_mode == "a4":
+        return _generate_pdf_a4(image_paths, output_path)
+    return _generate_pdf_default(image_paths, output_path)
 
+
+def _generate_pdf_default(image_paths: list[str], output_path: Path) -> Path:
+    """Original behaviour: page size = widest image \u00d7 current image height."""
     # First pass: find maximum width
     max_width = 0
     sizes = []
@@ -39,6 +57,43 @@ def generate_pdf(image_paths: list[str], output_path: str | Path) -> Path:
         c.drawImage(img_path, x, 0, width=w, height=h, mask="auto")
 
         if idx < len(sizes) - 1:
+            c.showPage()
+
+    c.save()
+    return output_path
+
+
+def _generate_pdf_a4(image_paths: list[str], output_path: Path) -> Path:
+    """A4 mode: each page is A4, image scaled to fit, centred on black."""
+    a4_w, a4_h = A4  # 595.28 \u00d7 841.89 points
+
+    c = canvas.Canvas(str(output_path), pagesize=A4)
+
+    drawn = 0
+    for idx, img_path in enumerate(image_paths):
+        try:
+            with PILImage.open(img_path) as img:
+                w, h = img.size
+        except Exception:
+            continue
+
+        # Black background
+        c.setFillColor(black)
+        c.rect(0, 0, a4_w, a4_h, stroke=0, fill=1)
+
+        # Scale image to fit within A4 while keeping aspect ratio
+        scale = min(a4_w / w, a4_h / h)
+        draw_w = w * scale
+        draw_h = h * scale
+
+        # Centre on page
+        x = (a4_w - draw_w) / 2
+        y = (a4_h - draw_h) / 2
+
+        c.drawImage(img_path, x, y, width=draw_w, height=draw_h, mask="auto")
+        drawn += 1
+
+        if idx < len(image_paths) - 1:
             c.showPage()
 
     c.save()
