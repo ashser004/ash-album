@@ -1,148 +1,219 @@
-Ash Album
-=========
+# 🖼️ Ash Album
+### *Fast • Dark • Beautiful*
 
-Ash Album is a fast, dark-themed media gallery and PDF creator for Windows. It helps you browse photos and videos, open a full-screen viewer, crop images, hide files, and export selected images to PDF.
+**Ash Album** is a sleek, modern photo and video gallery for Windows with powerful PDF creation capabilities. Experience lightning-fast browsing, intuitive navigation, and professional image management in one elegant application.
 
-Version: 1.1.2
+---
 
-Overview
---------
+## 🚀 **Getting Started**
 
-- Browse photos and videos in a clean, modern gallery.
-- Open a full-screen viewer with navigation and actions.
-- Select multiple images and generate a PDF (A4 or original size).
-- Hide files to a private folder and restore them later.
-- Set Ash Album as the default app to open images from Explorer.
+### **Option 1: Download Ready-to-Use Executable**
+1. **Download** the latest release from the [Releases](../../releases) section
+2. **Extract** the downloaded file to your preferred location
+3. **Create Desktop Shortcut:**
+   - Right-click on `Ash Album.exe`
+   - Select **"Show more options"** → **"Create shortcut"**
+   - Copy the shortcut and paste it on your **Desktop**
+   - Rename the shortcut to **"Ash Album"**
+4. **Launch** by double-clicking the desktop shortcut
 
-Quick Start (PDF First)
------------------------
-
-1. Open Ash Album.
-2. Select images:
-   - In the gallery: Ctrl + Click thumbnails.
-   - In the viewer: click an image, then press Select.
-3. Click Generate PDF.
-4. Choose the page size:
-   - A4: scales each image to fit a standard A4 page.
-   - Default: each page matches the original image size.
-5. Choose the save location and confirm.
-
-Installation
-------------
-
-Run the executable:
-
-- Launch Ash Album.exe.
-- On first run, choose your media folders.
-
-Run from source:
-
+### **Option 2: Run from Source Code**
 ```bash
+# Clone or download the repository
+git clone <repository-url>
+
+# Install dependencies
 pip install -r requirements.txt
+
+# Launch the application
 python main.py
 ```
 
-Features
---------
+---
 
-- Gallery view with tabs and sorting.
-- Full-screen viewer with keyboard navigation.
-- Crop, delete, hide, and add to PDF from the viewer.
-- Folder-based navigation and hidden media view.
-- PDF export with page size choice.
-- File association for double-click opening.
-- Thumbnail cache for faster loading.
+## 🎯 **Set Ash Album as Your Default Image Viewer**
 
-Using the App
--------------
+### **For Images (Recommended)**
+1. **Open Windows Settings** (`Win + I`)
+2. **Search** for "Default apps" and open it
+3. **Navigate** to the "Photos" section
+4. **Select** the following file formats one by one:
+   - `.jpg`
+   - `.jpeg` 
+   - `.png`
+5. **Click** "Choose an app from the PC"
+6. **Browse** to your Ash Album folder and select `Ash Album.exe`
+7. **Confirm** the selection
 
-Gallery
-- Tabs: All, Photos, Videos, Recent, Screenshots, Folders, Hidden.
-- Sort: name, created date, modified date, file size (ascending/descending).
-- Selection: Ctrl + Click thumbnails to select multiple images.
+### **For Videos (Optional)**
+You can also set Ash Album as the default viewer for videos:
+- Follow the same steps for `.mp4` and `.mkv` formats
+- *Note: Subtitle display and advanced seeking options are not available for videos*
 
-Viewer
-- Open a thumbnail to view full-screen.
-- Use left/right arrows or the on-screen buttons to navigate.
-- Actions: Select, Crop (images only), Delete, Hide, Add to PDF.
-- Videos: Play/Pause with Space.
+---
 
-Cropping
-- Open an image in the viewer and click Crop.
-- Draw the selection and confirm.
-- The cropped image is saved in the same folder.
+## ✨ **Why This Matters: Standalone Opening**
 
-Hidden Files
-- Click Hide in the viewer to move a file to the hidden folder.
-- Open the Hidden tab to view and restore hidden files.
+Once set as your default image viewer, **double-clicking any image in Windows Explorer** will:
 
-Default App for Images (Windows)
--------------------------------
+🎯 **Instantly open** Ash Album's full-screen viewer  
+🎯 **Load only images** from that specific folder  
+🎯 **Enable seamless navigation** with arrow keys  
+🎯 **Provide instant access** to all editing features  
+🎯 **Allow immediate PDF creation** from any folder  
 
-Method 1: Open with
-1. Right-click any .jpg, .jpeg, or .png file.
-2. Choose Open with > Choose another app.
-3. Select Ash Album and check Always use this app.
+This transforms how you interact with your photos—no more opening a separate gallery app, just **pure, instant image viewing**.
 
-Method 2: Settings
-1. Open Settings (Win + I).
-2. Go to Apps > Default apps.
-3. Search for .jpg, .jpeg, .png, etc., and set Ash Album for each.
+---
 
-When set as the default app:
-- Double-clicking an image opens Ash Album directly.
-- The viewer shows only images from the same folder.
-- All viewer features are available.
+## 🏛️ **Application Features**
 
-Optional: Default App for Videos
---------------------------------
+### **🖼️ Gallery View**
+- **Elegant Dark Theme** — Easy on the eyes, professional appearance
+- **Lightning-Fast Thumbnails** — Cached for instant loading
+- **Smart Organization** — Automatic sorting by date, name, size, or type
+- **Multi-Selection** — Ctrl+Click to select multiple images efficiently
+- **Folder Discovery** — Automatically finds and organizes all your media
 
-Ash Album can open videos, but subtitle support is limited. If you still want it:
+### **📱 Intelligent Tabs**
+| Tab | Purpose |
+|-----|---------|
+| **ALL** | Every photo and video in your collection |
+| **PHOTOS** | Images only (JPG, PNG, WEBP, GIF, BMP) |
+| **VIDEOS** | Video files only (MP4, MKV, MOV, AVI, WEBM) |
+| **RECENT** | Files modified in the last 30 days |
+| **SCREENSHOTS** | Automatically detected screenshot folders |
+| **FOLDERS** | Browse by specific folder location |
+| **HIDDEN** | Private files you've hidden |
 
-1. Go to Settings > Apps > Default apps.
-2. Set Ash Album for .mp4 and .mkv.
+### **🔍 Full-Screen Viewer**
+- **Immersive Experience** — Distraction-free full-screen viewing
+- **Smooth Navigation** — Arrow keys or on-screen controls
+- **Instant Actions** — Select, crop, delete, hide with one click
+- **Smart Sizing** — Images scale perfectly to your display
+- **Video Playback** — Built-in player with play/pause controls
 
-Keyboard Shortcuts
-------------------
+### **✂️ Built-in Image Editor**
+- **Intuitive Cropping** — Draw and apply crops instantly
+- **Non-destructive** — Original files remain untouched
+- **Auto-save** — Cropped images saved with timestamps
+- **Live Preview** — See results before applying changes
 
-- Left / Right Arrow: Previous / Next image in viewer
-- Escape: Close viewer
-- Space: Play/Pause video
-- Ctrl + Click: Select thumbnail in gallery
+### **🔒 Privacy Features**
+- **Hide Function** — Move sensitive images to a private folder
+- **Easy Restoration** — Unhide files from the Hidden tab
+- **Local Storage** — Hidden files stay on your computer
+- **No Cloud Dependency** — Complete privacy control
 
-Folders Scanned by Default
---------------------------
+### **📄 Professional PDF Export**
+- **Multi-Image PDFs** — Combine any number of selected images
+- **Page Size Options:**
+  - **A4 Mode** — Perfect for printing (210×297mm standard)
+  - **Original Mode** — Maintains image dimensions for digital viewing
+- **High Quality** — Preserves image clarity and color accuracy
+- **Custom Naming** — Automatic timestamps or custom filenames
 
-- Pictures
-- Videos
-- Desktop
-- Downloads
-- OneDrive equivalents (if available)
+---
 
-App Data Location
------------------
+## 🎮 **How to Use**
 
-Ash Album stores settings, cache, and hidden files here:
+### **Creating Your First PDF**
+1. **Launch** Ash Album
+2. **Browse** your photos using the tab system
+3. **Select images** by Ctrl+Clicking thumbnails (or use the viewer's Select button)
+4. **Click** the "Generate PDF" button
+5. **Choose** A4 (for printing) or Original (for digital viewing)
+6. **Save** to your preferred location
 
+### **Quick Image Editing**
+1. **Click** any thumbnail to open the full-screen viewer
+2. **Use** arrow keys to navigate between images
+3. **Click** "Crop" to edit the current image
+4. **Draw** your selection area and confirm
+5. **Find** the edited image in the same folder with a timestamp
+
+### **Managing Private Images**
+1. **Open** an image in the viewer
+2. **Click** "Hide" to move it to your private folder
+3. **Access** hidden images via the "HIDDEN" tab
+4. **Click** "Unhide" in the viewer to restore files
+
+### **Folder-Specific Viewing**
+1. **Double-click** any image in Windows Explorer
+2. **Navigate** through images in that folder only
+3. **Use** all features (crop, select, PDF) on those specific images
+4. **Press** Escape to close when finished
+
+---
+
+## ⌨️ **Keyboard Shortcuts**
+
+| Shortcut | Action |
+|----------|--------|
+| `←` `→` | Navigate between images |
+| `Space` | Play/Pause videos |
+| `Escape` | Close viewer |
+| `Ctrl + Click` | Select multiple thumbnails |
+
+---
+
+## 📁 **Smart Folder Management**
+
+Ash Album automatically scans these locations:
+- **Pictures** folder and subfolders
+- **Videos** folder and subfolders  
+- **Desktop** media files
+- **Downloads** folder
+- **OneDrive** Pictures and Videos (if available)
+
+All discovered folders appear in the **FOLDERS** tab with file counts for easy navigation.
+
+---
+
+## 💾 **Application Data**
+
+Settings and private files are stored locally:
 ```
-C:\Users\YourUsername\Documents\AshAlbum\
-  config.json
-  cache\
-  hidden\
+📁 C:\Users\[YourName]\Documents\AshAlbum\
+   📄 config.json          (App settings)
+   📁 cache\              (Fast-loading thumbnails)
+   📁 hidden\             (Your private images)
 ```
 
-Troubleshooting
----------------
+---
 
-- App does not open on double-click: set Ash Album as the default app for .jpg/.jpeg/.png.
-- Thumbnails are slow: click Refresh to rebuild cache.
-- Video playback fails: install missing codecs or use a dedicated video player.
-- PDF generation fails: check file permissions and free disk space.
+## 🎨 **Built for Professionals**
 
-License
--------
+- **Dark Theme** — Reduces eye strain during long editing sessions
+- **High DPI Support** — Crisp on 4K and high-resolution displays  
+- **Memory Efficient** — Smart caching minimizes RAM usage
+- **Fast Scanning** — Quickly indexes large photo collections
+- **Reliable Performance** — Stable operation with thousands of files
 
-See [LICENSE](LICENSE).
+---
+
+## 📋 **System Requirements**
+
+- **Windows 10** or Windows 11
+- **4GB RAM** minimum (8GB recommended for large collections)
+- **100MB** free disk space for installation
+- **Additional space** for thumbnail cache (approx. 1MB per 100 images)
+
+---
+
+## 🆕 **What Makes Ash Album Special**
+
+✅ **Instant Opening** — No splash screens or loading delays  
+✅ **True Dark Mode** — Carefully designed for comfort  
+✅ **Smart Organization** — Finds and sorts your media automatically  
+✅ **Professional PDF Creation** — Publication-ready output  
+✅ **Privacy First** — Hidden files stay completely local  
+✅ **Seamless Integration** — Works perfectly with Windows Explorer  
+✅ **Zero Bloat** — Only the features you actually need  
+
+---
+
+*Transform your photo viewing experience. Download Ash Album today.*
 @="AshAlbumImage"
 
 [HKEY_CLASSES_ROOT\.gif]
