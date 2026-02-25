@@ -48,6 +48,7 @@ from PySide6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QMessageBox,
+    QProgressDialog,
     QPushButton,
     QScrollArea,
     QSizePolicy,
@@ -341,8 +342,15 @@ class PDFViewerWindow(QDialog):
         lay.addStretch()
 
         # ── Zoom controls ──
-        self._btn_zoom_out = self._tool_btn("−")
+        zoom_label_text = QLabel("Zoom")
+        zoom_label_text.setStyleSheet(
+            f"color: {COLORS['text_dim']}; font-size: 11px; font-weight: 600;"
+        )
+        lay.addWidget(zoom_label_text)
+
+        self._btn_zoom_out = self._tool_btn("\u2212")
         self._btn_zoom_out.setFixedWidth(36)
+        self._btn_zoom_out.setToolTip("Zoom out (hold for fine control)")
         self._btn_zoom_out.pressed.connect(self._on_zoom_out_pressed)
         self._btn_zoom_out.released.connect(self._on_zoom_out_released)
         lay.addWidget(self._btn_zoom_out)
@@ -357,6 +365,7 @@ class PDFViewerWindow(QDialog):
 
         self._btn_zoom_in = self._tool_btn("+")
         self._btn_zoom_in.setFixedWidth(36)
+        self._btn_zoom_in.setToolTip("Zoom in (hold for fine control)")
         self._btn_zoom_in.pressed.connect(self._on_zoom_in_pressed)
         self._btn_zoom_in.released.connect(self._on_zoom_in_released)
         lay.addWidget(self._btn_zoom_in)
@@ -396,13 +405,14 @@ class PDFViewerWindow(QDialog):
         lay.addSpacing(8)
 
         # ── Hide toolbar button ──
-        self._btn_hide_bar = QPushButton("👁")
-        self._btn_hide_bar.setFixedSize(36, 36)
+        self._btn_hide_bar = QPushButton("Hide")
+        self._btn_hide_bar.setFixedHeight(34)
         self._btn_hide_bar.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._btn_hide_bar.setToolTip("Hide toolbar")
+        self._btn_hide_bar.setToolTip("Hide toolbar — view PDF without distractions")
         self._btn_hide_bar.setStyleSheet(
             f"QPushButton {{ background-color: {COLORS['bg_lighter']}; color: {COLORS['text']}; "
-            f"border: none; border-radius: 8px; font-size: 16px; }}"
+            f"border: none; border-radius: 8px; padding: 4px 14px; "
+            f"font-size: 11px; font-weight: 700; }}"
             f"QPushButton:hover {{ background-color: {COLORS['accent']}; }}"
         )
         self._btn_hide_bar.clicked.connect(self._toggle_toolbar)
@@ -417,7 +427,8 @@ class PDFViewerWindow(QDialog):
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
         btn.setStyleSheet(
             f"QPushButton {{ background-color: {COLORS['bg_lighter']}; color: {COLORS['text']}; "
-            f"border: none; border-radius: 8px; font-size: 16px; font-weight: 700; }}"
+            f"border: none; border-radius: 8px; padding: 4px 10px; "
+            f"font-size: 18px; font-weight: 700; }}"
             f"QPushButton:hover {{ background-color: {COLORS['accent']}; }}"
         )
         return btn
@@ -720,22 +731,7 @@ class PDFViewerWindow(QDialog):
         if not folder:
             return
 
-        exported = 0
-        for page_num in pages:
-            qimg = self._render_page_hq(page_num - 1)
-            if qimg:
-                out_path = folder / f"{page_num}.png"
-                qimg.save(str(out_path), "PNG")
-                exported += 1
-
-        if exported:
-            QMessageBox.information(
-                self,
-                "Export Complete",
-                f"Exported {exported} page(s) to:\n{folder}",
-            )
-        else:
-            QMessageBox.warning(self, "Export Failed", "No pages could be exported.")
+        self._export_pages_with_progress(pages, folder)
 
     def _convert_all_to_png(self):
         """Convert all pages of the PDF to PNG."""
@@ -746,19 +742,73 @@ class PDFViewerWindow(QDialog):
         if not folder:
             return
 
+        pages = list(range(1, self._page_count + 1))
+        self._export_pages_with_progress(pages, folder)
+
+    def _export_pages_with_progress(self, pages: list[int], folder: Path):
+        """Export pages to PNG with a progress dialog that shows percentage."""
+        total = len(pages)
+        pdf_name = Path(self._pdf_path).stem
+
+        progress = QProgressDialog(
+            f"Please wait while rendering {pdf_name}... (0%)",
+            "Cancel",
+            0,
+            total,
+            self,
+        )
+        progress.setWindowTitle("Rendering Pages")
+        progress.setWindowModality(Qt.WindowModality.WindowModal)
+        progress.setMinimumDuration(0)
+        progress.setMinimumWidth(420)
+        progress.setStyleSheet(
+            f"QProgressDialog {{ background-color: {COLORS['bg_mid']}; color: {COLORS['text']}; }}"
+            f"QProgressBar {{ background-color: {COLORS['bg_light']}; border: none; "
+            f"border-radius: 4px; height: 10px; text-align: center; }}"
+            f"QProgressBar::chunk {{ background-color: {COLORS['accent']}; border-radius: 4px; }}"
+            f"QLabel {{ color: {COLORS['text']}; font-size: 13px; }}"
+            f"QPushButton {{ background-color: {COLORS['danger']}; color: #fff; "
+            f"border: none; border-radius: 6px; padding: 6px 20px; font-weight: 700; }}"
+            f"QPushButton:hover {{ background-color: #f44336; }}"
+        )
+        progress.show()
+        QApplication.processEvents()
+
         exported = 0
-        for i in range(self._page_count):
-            qimg = self._render_page_hq(i)
+        cancelled = False
+        for i, page_num in enumerate(pages):
+            if progress.wasCanceled():
+                cancelled = True
+                break
+
+            pct = int((i / total) * 100)
+            progress.setLabelText(
+                f"Please wait while rendering {pdf_name}... ({pct}%)\n"
+                f"Page {page_num} of {pages[-1]}"
+            )
+            progress.setValue(i)
+            QApplication.processEvents()
+
+            qimg = self._render_page_hq(page_num - 1)
             if qimg:
-                out_path = folder / f"{i + 1}.png"
+                out_path = folder / f"{page_num}.png"
                 qimg.save(str(out_path), "PNG")
                 exported += 1
 
-        if exported:
+        progress.setValue(total)
+        progress.close()
+
+        if cancelled:
+            QMessageBox.information(
+                self,
+                "Export Cancelled",
+                f"Cancelled. {exported} of {total} page(s) were saved to:\n{folder}",
+            )
+        elif exported:
             QMessageBox.information(
                 self,
                 "Export Complete",
-                f"Exported all {exported} page(s) to:\n{folder}",
+                f"Exported {exported} page(s) to:\n{folder}",
             )
         else:
             QMessageBox.warning(self, "Export Failed", "No pages could be exported.")
