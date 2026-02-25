@@ -9,6 +9,7 @@ scanning automatically appears in the FOLDERS tab sidebar.
 
 from __future__ import annotations
 
+import os
 from collections import OrderedDict
 from datetime import datetime, timedelta
 from functools import partial
@@ -44,7 +45,6 @@ from .config import (
     SCAN_FOLDERS,
     SCREENSHOT_FOLDERS,
     SORT_OPTIONS,
-    VIDEO_EXTENSIONS,
     AppConfig,
 )
 from .crop_widget import CropDialog
@@ -52,6 +52,7 @@ from .gallery_widget import GalleryWidget
 from .media_ops import MediaOperations
 from .models import MediaItem
 from .pdf_export import auto_filename, generate_pdf
+from .pdf_viewer import PDFViewerWindow
 from .scanner import ScannerWorker
 from .theme import COLORS
 from .thumb_loader import ThumbnailWorker
@@ -66,10 +67,11 @@ TAB_VIDEOS = "VIDEOS"
 TAB_RECENT = "RECENT"
 TAB_SCREENSHOTS = "SCREENSHOTS"
 TAB_FOLDERS = "FOLDERS"
+TAB_PDF_PNG = "PDF→PNG"
 TAB_HIDDEN = "HIDDEN"
 
 TAB_ORDER = [TAB_ALL, TAB_PHOTOS, TAB_VIDEOS, TAB_RECENT,
-             TAB_SCREENSHOTS, TAB_FOLDERS, TAB_HIDDEN]
+             TAB_SCREENSHOTS, TAB_FOLDERS, TAB_PDF_PNG, TAB_HIDDEN]
 
 
 class MainWindow(QMainWindow):
@@ -89,6 +91,9 @@ class MainWindow(QMainWindow):
         # Folder tracking: folder_path → display_name
         self._discovered_folders: OrderedDict[str, str] = OrderedDict()
         self._active_folder: str | None = None  # for FOLDERS tab
+
+        # PDF→PNG data
+        self._pdf_folder_data: dict[str, list[str]] = {}
 
         # ---- workers (created later) ----
         self._scanner: ScannerWorker | None = None
@@ -156,6 +161,10 @@ class MainWindow(QMainWindow):
         # Page 2: FOLDERS tab — splitter with sidebar + gallery
         self._folders_page = self._make_folders_page()
         self._stack.addWidget(self._folders_page)
+
+        # Page 3: PDF→PNG tab — splitter with folder sidebar + file list
+        self._pdf_page = self._make_pdf_page()
+        self._stack.addWidget(self._pdf_page)
 
         # ---- Toast label (overlay) ----
         self._toast = QLabel(self)
@@ -295,6 +304,67 @@ class MainWindow(QMainWindow):
         self._folder_gallery.item_toggle_select.connect(self._toggle_select)
         splitter.addWidget(self._folder_gallery)
 
+        splitter.setStretchFactor(0, 0)
+        splitter.setStretchFactor(1, 1)
+        return splitter
+
+    # ---- PDF→PNG page ----
+
+    def _make_pdf_page(self) -> QWidget:
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.setStyleSheet(
+            f"QSplitter::handle {{ background-color: {COLORS['border']}; width: 1px; }}"
+        )
+
+        # Sidebar: folder list with PDF counts
+        sidebar = QWidget()
+        sidebar.setFixedWidth(260)
+        sidebar.setStyleSheet(f"background-color: {COLORS['bg_mid']};")
+        sb_lay = QVBoxLayout(sidebar)
+        sb_lay.setContentsMargins(0, 8, 0, 0)
+        sb_lay.setSpacing(0)
+
+        sb_title = QLabel("  PDF Folders")
+        sb_title.setFixedHeight(36)
+        sb_title.setStyleSheet(
+            f"color: {COLORS['text_dim']}; font-size: 11px; "
+            f"font-weight: 700; letter-spacing: 0.8px; padding-left: 12px;"
+        )
+        sb_lay.addWidget(sb_title)
+
+        self._pdf_folder_list = QListWidget()
+        self._pdf_folder_list.setStyleSheet(
+            f"QListWidget {{ background: {COLORS['bg_mid']}; border: none; outline: none; }}"
+            f"QListWidget::item {{ padding: 10px 16px; color: {COLORS['text']}; "
+            f"border-bottom: 1px solid {COLORS['bg_light']}; font-size: 12px; }}"
+            f"QListWidget::item:hover {{ background: {COLORS['bg_light']}; }}"
+            f"QListWidget::item:selected {{ background: {COLORS['accent']}; color: #fff; }}"
+        )
+        self._pdf_folder_list.currentItemChanged.connect(self._on_pdf_folder_selected)
+        sb_lay.addWidget(self._pdf_folder_list, 1)
+
+        splitter.addWidget(sidebar)
+
+        # Right side: PDF file list
+        right = QWidget()
+        right.setStyleSheet(f"background-color: {COLORS['bg_dark']};")
+        right_lay = QVBoxLayout(right)
+        right_lay.setContentsMargins(12, 12, 12, 12)
+        right_lay.setSpacing(8)
+
+        self._pdf_file_list = QListWidget()
+        self._pdf_file_list.setStyleSheet(
+            f"QListWidget {{ background: {COLORS['bg_dark']}; border: 1px solid {COLORS['border']}; "
+            f"border-radius: 8px; outline: none; }}"
+            f"QListWidget::item {{ padding: 12px 18px; color: {COLORS['text']}; "
+            f"border-bottom: 1px solid {COLORS['bg_light']}; font-size: 13px; }}"
+            f"QListWidget::item:hover {{ background: {COLORS['bg_light']}; }}"
+            f"QListWidget::item:selected {{ background: {COLORS['accent']}; color: #fff; }}"
+        )
+        self._pdf_file_list.itemDoubleClicked.connect(self._on_pdf_file_double_clicked)
+        right_lay.addWidget(self._pdf_file_list, 1)
+
+        splitter.addWidget(right)
         splitter.setStretchFactor(0, 0)
         splitter.setStretchFactor(1, 1)
         return splitter
@@ -518,6 +588,9 @@ class MainWindow(QMainWindow):
             # If a folder was selected, refresh its gallery
             if self._active_folder:
                 self._repopulate_folder_gallery()
+        elif tab_id == TAB_PDF_PNG:
+            self._stack.setCurrentIndex(3)
+            self._scan_pdf_folders()
         else:
             self._stack.setCurrentIndex(0)
             self._repopulate_gallery()
@@ -535,7 +608,94 @@ class MainWindow(QMainWindow):
             if self._current_tab == TAB_FOLDERS:
                 self._repopulate_folder_gallery()
                 return
+            if self._current_tab == TAB_PDF_PNG:
+                return  # no sorting for PDF tab
             self._repopulate_gallery()
+
+    # ================================================================
+    #  PDF→PNG tab
+    # ================================================================
+
+    def _scan_pdf_folders(self):
+        """Scan known folders for PDFs and populate the PDF folder sidebar."""
+        self._pdf_folder_list.clear()
+
+        from .config import SCAN_FOLDERS
+
+        pdf_folders: dict[str, list[str]] = {}  # folder_path → [pdf paths]
+        visited_dirs: set[str] = set()
+
+        for scan_root in SCAN_FOLDERS:
+            scan_root = Path(scan_root)
+            if not scan_root.exists():
+                continue
+            for root, dirs, files in os.walk(scan_root, topdown=True):
+                # Skip hidden/system directories
+                dirs[:] = [
+                    d for d in dirs
+                    if d not in {"$RECYCLE.BIN", "System Volume Information",
+                                 "AppData", ".git", "__pycache__",
+                                 "node_modules", ".venv", "venv"}
+                    and not d.startswith(".")
+                ]
+                root_path = Path(root)
+                try:
+                    resolved = str(root_path.resolve()).lower()
+                except OSError:
+                    continue
+                if resolved in visited_dirs:
+                    continue
+                visited_dirs.add(resolved)
+
+                pdfs_in_dir = []
+                for fname in files:
+                    if fname.lower().endswith(".pdf"):
+                        pdfs_in_dir.append(str(root_path / fname))
+
+                if pdfs_in_dir:
+                    folder_key = str(root_path)
+                    if folder_key not in pdf_folders:
+                        pdf_folders[folder_key] = []
+                    pdf_folders[folder_key].extend(pdfs_in_dir)
+
+        # Populate sidebar sorted by folder name
+        self._pdf_folder_data = pdf_folders
+        sorted_folders = sorted(pdf_folders.keys(), key=lambda p: Path(p).name.lower())
+        for folder_path in sorted_folders:
+            count = len(pdf_folders[folder_path])
+            display = f"{Path(folder_path).name}  ({count})"
+            item = QListWidgetItem(display)
+            item.setData(Qt.ItemDataRole.UserRole, folder_path)
+            self._pdf_folder_list.addItem(item)
+
+    def _on_pdf_folder_selected(self, current: QListWidgetItem | None, prev=None):
+        if current is None:
+            return
+        folder_path = current.data(Qt.ItemDataRole.UserRole)
+        self._pdf_file_list.clear()
+
+        pdfs = self._pdf_folder_data.get(folder_path, [])
+        pdfs.sort(key=lambda p: Path(p).name.lower())
+        for pdf_path in pdfs:
+            name = Path(pdf_path).name
+            item = QListWidgetItem(f"📄  {name}")
+            item.setData(Qt.ItemDataRole.UserRole, pdf_path)
+            self._pdf_file_list.addItem(item)
+
+    def _on_pdf_file_double_clicked(self, item: QListWidgetItem):
+        pdf_path = item.data(Qt.ItemDataRole.UserRole)
+        if not pdf_path:
+            return
+        # Gather sibling PDFs from the same folder
+        folder = str(Path(pdf_path).parent)
+        siblings = self._pdf_folder_data.get(folder, [pdf_path])
+        siblings = sorted(siblings, key=lambda p: Path(p).name.lower())
+        self._open_pdf_viewer(pdf_path, siblings)
+
+    def _open_pdf_viewer(self, pdf_path: str, sibling_pdfs: list[str] | None = None):
+        """Open the PDF viewer dialog."""
+        dlg = PDFViewerWindow(pdf_path, sibling_pdfs, self)
+        dlg.exec()
 
     # ================================================================
     #  Gallery population
@@ -732,7 +892,6 @@ class MainWindow(QMainWindow):
         dlg.request_select.connect(self._viewer_toggle_select)
         dlg.request_crop.connect(self._do_crop)
         dlg.request_delete.connect(self._do_delete)
-        dlg.request_add_pdf.connect(self._viewer_add_pdf)
         self._active_viewer = dlg
         dlg.exec()
         self._active_viewer = None
@@ -743,7 +902,6 @@ class MainWindow(QMainWindow):
         dlg.request_crop.connect(self._do_crop)
         dlg.request_delete.connect(self._do_delete)
         dlg.request_hide.connect(self._do_hide)
-        dlg.request_add_pdf.connect(self._viewer_add_pdf)
         self._active_viewer = dlg
         dlg.exec()
         self._active_viewer = None
@@ -757,20 +915,6 @@ class MainWindow(QMainWindow):
             self._selected_paths.append(path)
             order = len(self._selected_paths)
             # Update galleries if item visible
-            if self._gallery.path_exists(path):
-                self._gallery.set_selection(path, True, order)
-            if self._folder_gallery.path_exists(path):
-                self._folder_gallery.set_selection(path, True, order)
-        self._update_sel_label()
-
-    def _viewer_add_pdf(self, path: str):
-        # Only images
-        ext = Path(path).suffix.lower()
-        if ext in VIDEO_EXTENSIONS:
-            return
-        if path not in self._selected_paths:
-            self._selected_paths.append(path)
-            order = len(self._selected_paths)
             if self._gallery.path_exists(path):
                 self._gallery.set_selection(path, True, order)
             if self._folder_gallery.path_exists(path):

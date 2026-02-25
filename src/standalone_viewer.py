@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
 )
 
-from .config import ALL_EXTENSIONS, IMAGE_EXTENSIONS, VIDEO_EXTENSIONS, AppConfig
+from .config import ALL_EXTENSIONS, IMAGE_EXTENSIONS, AppConfig
 from .crop_widget import CropDialog
 from .media_ops import MediaOperations
 from .pdf_export import auto_filename, generate_pdf
@@ -92,7 +92,6 @@ class StandaloneViewer(QMainWindow):
         self._viewer.request_crop.connect(self._do_crop)
         self._viewer.request_delete.connect(self._do_delete)
         self._viewer.request_hide.connect(self._do_hide)
-        self._viewer.request_add_pdf.connect(self._add_pdf)
         self._viewer.request_generate_pdf.connect(self._generate_pdf)
 
         # Show standalone-only controls (Generate PDF button)
@@ -107,13 +106,6 @@ class StandaloneViewer(QMainWindow):
         if path in self._selected_paths:
             self._selected_paths.remove(path)
         else:
-            self._selected_paths.append(path)
-
-    def _add_pdf(self, path: str):
-        ext = Path(path).suffix.lower()
-        if ext in VIDEO_EXTENSIONS:
-            return
-        if path not in self._selected_paths:
             self._selected_paths.append(path)
 
     def _do_crop(self, path: str):
@@ -165,7 +157,7 @@ class StandaloneViewer(QMainWindow):
                 self._viewer,
                 "No Images",
                 "Select at least one image to generate a PDF.\n\n"
-                "Tip: Use the Select or Add to PDF button to pick images.",
+                "Tip: Use the Select button to pick images.",
             )
             return
 

@@ -15,7 +15,9 @@ DEFAULT_BASE_DIR = Path.home() / "Documents" / "AshAlbum"
 
 IMAGE_EXTENSIONS = frozenset({".jpg", ".jpeg", ".png", ".bmp", ".webp", ".gif"})
 VIDEO_EXTENSIONS = frozenset({".mp4", ".mkv", ".mov", ".avi", ".webm"})
+PDF_EXTENSIONS = frozenset({".pdf"})
 ALL_EXTENSIONS = IMAGE_EXTENSIONS | VIDEO_EXTENSIONS
+ALL_EXTENSIONS_WITH_PDF = ALL_EXTENSIONS | PDF_EXTENSIONS
 
 THUMB_SIZE = 180
 

@@ -33,7 +33,6 @@ class ViewerWindow(QDialog):
     request_crop = Signal(str)          # open crop dialog
     request_delete = Signal(str)        # delete
     request_hide = Signal(str)          # hide
-    request_add_pdf = Signal(str)       # add to PDF selection
     request_generate_pdf = Signal()     # generate PDF (standalone mode)
     closed = Signal()
 
@@ -165,16 +164,13 @@ class ViewerWindow(QDialog):
         self._btn_hide = _S("Hide", bg="#ff9800", hover="#ffb74d")
         self._btn_hide.clicked.connect(self._on_hide)
 
-        self._btn_pdf = _S("Add to PDF", bg="#43c667", hover="#50d870")
-        self._btn_pdf.clicked.connect(self._on_add_pdf)
-
         self._btn_gen_pdf = _S("Generate PDF", bg="#7c5cfc", hover="#9b7dff")
         self._btn_gen_pdf.clicked.connect(self._on_generate_pdf)
         self._btn_gen_pdf.hide()  # shown only in standalone mode
 
         bar_lay.addStretch()
         for b in (self._btn_select, self._btn_crop, self._btn_play,
-                  self._btn_delete, self._btn_hide, self._btn_pdf,
+                  self._btn_delete, self._btn_hide,
                   self._btn_gen_pdf):
             bar_lay.addWidget(b)
         bar_lay.addStretch()
@@ -408,18 +404,6 @@ class ViewerWindow(QDialog):
                 self._show_current()
             else:
                 self.close()
-
-    def _on_add_pdf(self):
-        path = self._current_path()
-        if not path:
-            return
-        # Only images can be added to PDF
-        if self._is_video:
-            return
-        self.request_add_pdf.emit(path)
-        if path not in self._selected:
-            self._selected.append(path)
-        self._show_current()
 
     # ────────────────── standalone mode ──────────────────
 
