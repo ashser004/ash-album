@@ -11,12 +11,13 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QTimer, Qt
 from PySide6.QtWidgets import (
     QApplication,
     QFileDialog,
     QMainWindow,
     QMessageBox,
+    QProgressDialog,
 )
 
 from .config import ALL_EXTENSIONS, IMAGE_EXTENSIONS, AppConfig
@@ -179,12 +180,48 @@ class StandaloneViewer(QMainWindow):
             save_path = str(Path(save_path).parent / default_name)
 
         try:
-            generate_pdf(images, save_path, page_mode=page_mode)
-            QMessageBox.information(
-                self._viewer,
-                "PDF Created",
-                f"Saved {len(images)} image(s) to:\n{save_path}",
+            total = len(images)
+            cancelled = False
+
+            progress = QProgressDialog(
+                f"Generating PDF... (0/{total})",
+                "Cancel",
+                0, total, self._viewer,
             )
+            progress.setWindowTitle("Generating PDF")
+            progress.setWindowModality(Qt.WindowModality.WindowModal)
+            progress.setMinimumDuration(0)
+            progress.setMinimumWidth(400)
+            progress.show()
+            QApplication.processEvents()
+
+            def _on_progress(current: int, total_count: int) -> bool:
+                nonlocal cancelled
+                if progress.wasCanceled():
+                    cancelled = True
+                    return False
+                pct = int((current / total_count) * 100) if total_count else 0
+                progress.setLabelText(
+                    f"Please wait while generating PDF... ({pct}%)\n"
+                    f"Processing image {current + 1} of {total_count}"
+                )
+                progress.setValue(current)
+                QApplication.processEvents()
+                return True
+
+            generate_pdf(images, save_path, page_mode=page_mode,
+                         progress_callback=_on_progress)
+            progress.setValue(total)
+            progress.close()
+
+            if cancelled:
+                pass  # silently cancelled
+            else:
+                QMessageBox.information(
+                    self._viewer,
+                    "PDF Created",
+                    f"Saved {len(images)} image(s) to:\n{save_path}",
+                )
         except Exception as exc:
             QMessageBox.warning(
                 self._viewer, "Error", f"PDF generation failed:\n{exc}"

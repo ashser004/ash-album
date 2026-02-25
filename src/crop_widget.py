@@ -179,15 +179,40 @@ class CropDialog(QDialog):
         self._info.setStyleSheet(f"color: {COLORS['text_dim']}; font-size: 12px;")
 
         btn_cancel = QPushButton("Cancel")
+        btn_cancel.setFixedHeight(36)
+        btn_cancel.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_cancel.setStyleSheet(
+            f"QPushButton {{ background-color: {COLORS['bg_lighter']}; color: {COLORS['text']}; "
+            f"border: 1px solid {COLORS['border']}; border-radius: 8px; "
+            f"padding: 6px 20px; font-weight: 700; font-size: 12px; }}"
+            f"QPushButton:hover {{ background-color: {COLORS['accent']}; color: #fff; "
+            f"border-color: {COLORS['accent']}; }}"
+        )
         btn_cancel.clicked.connect(self.reject)
 
         self._btn_overwrite = QPushButton("Overwrite Original")
-        self._btn_overwrite.setObjectName("dangerBtn")
+        self._btn_overwrite.setFixedHeight(36)
+        self._btn_overwrite.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._btn_overwrite.setStyleSheet(
+            f"QPushButton {{ background-color: {COLORS['danger']}; color: #ffffff; "
+            f"border: none; border-radius: 8px; padding: 6px 20px; "
+            f"font-weight: 700; font-size: 12px; }}"
+            f"QPushButton:hover {{ background-color: #f44336; }}"
+            f"QPushButton:disabled {{ background-color: {COLORS['bg_light']}; color: {COLORS['text_muted']}; }}"
+        )
         self._btn_overwrite.setEnabled(False)
         self._btn_overwrite.clicked.connect(self._do_overwrite)
 
         self._btn_saveas = QPushButton("Save as New File")
-        self._btn_saveas.setObjectName("accentBtn")
+        self._btn_saveas.setFixedHeight(36)
+        self._btn_saveas.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._btn_saveas.setStyleSheet(
+            f"QPushButton {{ background-color: {COLORS['accent']}; color: #ffffff; "
+            f"border: none; border-radius: 8px; padding: 6px 20px; "
+            f"font-weight: 700; font-size: 12px; }}"
+            f"QPushButton:hover {{ background-color: {COLORS['accent_hover']}; }}"
+            f"QPushButton:disabled {{ background-color: {COLORS['bg_light']}; color: {COLORS['text_muted']}; }}"
+        )
         self._btn_saveas.setEnabled(False)
         self._btn_saveas.clicked.connect(self._do_save_as)
 

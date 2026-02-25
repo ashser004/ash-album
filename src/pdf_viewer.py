@@ -764,8 +764,9 @@ class PDFViewerWindow(QDialog):
         progress.setStyleSheet(
             f"QProgressDialog {{ background-color: {COLORS['bg_mid']}; color: {COLORS['text']}; }}"
             f"QProgressBar {{ background-color: {COLORS['bg_light']}; border: none; "
-            f"border-radius: 4px; height: 10px; text-align: center; }}"
-            f"QProgressBar::chunk {{ background-color: {COLORS['accent']}; border-radius: 4px; }}"
+            f"border-radius: 6px; min-height: 22px; max-height: 22px; text-align: center; "
+            f"font-size: 12px; font-weight: 600; color: {COLORS['text']}; }}"
+            f"QProgressBar::chunk {{ background-color: {COLORS['accent']}; border-radius: 6px; }}"
             f"QLabel {{ color: {COLORS['text']}; font-size: 13px; }}"
             f"QPushButton {{ background-color: {COLORS['danger']}; color: #fff; "
             f"border: none; border-radius: 6px; padding: 6px 20px; font-weight: 700; }}"

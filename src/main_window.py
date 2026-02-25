@@ -28,6 +28,7 @@ from PySide6.QtWidgets import (
     QListWidgetItem,
     QMainWindow,
     QMessageBox,
+    QProgressDialog,
     QPushButton,
     QProgressBar,
     QScrollArea,
@@ -1031,11 +1032,58 @@ class MainWindow(QMainWindow):
             save_path = str(Path(save_path).parent / default_name)
 
         try:
-            generate_pdf(images, save_path, page_mode=page_mode)
-            QMessageBox.information(
-                self, "PDF Created",
-                f"Saved {len(images)} image(s) to:\n{save_path}",
+            total = len(images)
+            cancelled = False
+
+            progress = QProgressDialog(
+                f"Generating PDF... (0/{total})",
+                "Cancel",
+                0, total, self,
             )
+            progress.setWindowTitle("Generating PDF")
+            progress.setWindowModality(Qt.WindowModality.WindowModal)
+            progress.setMinimumDuration(0)
+            progress.setMinimumWidth(400)
+            progress.setStyleSheet(
+                f"QProgressDialog {{ background-color: {COLORS['bg_mid']}; color: {COLORS['text']}; }}"
+                f"QProgressBar {{ background-color: {COLORS['bg_light']}; border: none; "
+                f"border-radius: 6px; min-height: 22px; max-height: 22px; text-align: center; "
+                f"font-size: 12px; font-weight: 600; color: {COLORS['text']}; }}"
+                f"QProgressBar::chunk {{ background-color: {COLORS['accent']}; border-radius: 6px; }}"
+                f"QLabel {{ color: {COLORS['text']}; font-size: 13px; }}"
+                f"QPushButton {{ background-color: {COLORS['danger']}; color: #fff; "
+                f"border: none; border-radius: 6px; padding: 6px 20px; font-weight: 700; }}"
+                f"QPushButton:hover {{ background-color: #f44336; }}"
+            )
+            progress.show()
+            QApplication.processEvents()
+
+            def _on_progress(current: int, total_count: int) -> bool:
+                nonlocal cancelled
+                if progress.wasCanceled():
+                    cancelled = True
+                    return False
+                pct = int((current / total_count) * 100) if total_count else 0
+                progress.setLabelText(
+                    f"Please wait while generating PDF... ({pct}%)\n"
+                    f"Processing image {current + 1} of {total_count}"
+                )
+                progress.setValue(current)
+                QApplication.processEvents()
+                return True
+
+            generate_pdf(images, save_path, page_mode=page_mode,
+                         progress_callback=_on_progress)
+            progress.setValue(total)
+            progress.close()
+
+            if cancelled:
+                self._show_toast("PDF generation cancelled")
+            else:
+                QMessageBox.information(
+                    self, "PDF Created",
+                    f"Saved {len(images)} image(s) to:\n{save_path}",
+                )
         except Exception as exc:
             QMessageBox.warning(self, "Error", f"PDF generation failed:\n{exc}")
 
