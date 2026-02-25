@@ -182,7 +182,8 @@ class MainWindow(QMainWindow):
         self._toast_timer.timeout.connect(self._toast.hide)
 
         # --- bottom bar ---
-        root.addWidget(self._make_bottom_bar())
+        self._bottom_bar = self._make_bottom_bar()
+        root.addWidget(self._bottom_bar)
 
     # ---- header ----
 
@@ -595,6 +596,9 @@ class MainWindow(QMainWindow):
         else:
             self._stack.setCurrentIndex(0)
             self._repopulate_gallery()
+
+        # Hide bottom bar on PDF→PNG tab, show on all others
+        self._bottom_bar.setVisible(tab_id != TAB_PDF_PNG)
 
     # ================================================================
     #  Sorting
@@ -1045,14 +1049,17 @@ class MainWindow(QMainWindow):
             progress.setMinimumDuration(0)
             progress.setMinimumWidth(400)
             progress.setStyleSheet(
-                f"QProgressDialog {{ background-color: {COLORS['bg_mid']}; color: {COLORS['text']}; }}"
+                f"QProgressDialog {{ background-color: {COLORS['bg_mid']}; color: {COLORS['text']}; "
+                f"min-height: 160px; padding: 14px; }}"
                 f"QProgressBar {{ background-color: {COLORS['bg_light']}; border: none; "
                 f"border-radius: 6px; min-height: 22px; max-height: 22px; text-align: center; "
-                f"font-size: 12px; font-weight: 600; color: {COLORS['text']}; }}"
+                f"font-size: 12px; font-weight: 600; color: {COLORS['text']}; "
+                f"margin-bottom: 14px; }}"
                 f"QProgressBar::chunk {{ background-color: {COLORS['accent']}; border-radius: 6px; }}"
-                f"QLabel {{ color: {COLORS['text']}; font-size: 13px; }}"
+                f"QLabel {{ color: {COLORS['text']}; font-size: 13px; margin-bottom: 8px; }}"
                 f"QPushButton {{ background-color: {COLORS['danger']}; color: #fff; "
-                f"border: none; border-radius: 6px; padding: 6px 20px; font-weight: 700; }}"
+                f"border: none; border-radius: 6px; padding: 6px 20px; "
+                f"font-weight: 700; margin-top: 6px; }}"
                 f"QPushButton:hover {{ background-color: #f44336; }}"
             )
             progress.show()

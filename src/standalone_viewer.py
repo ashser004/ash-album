@@ -24,6 +24,7 @@ from .config import ALL_EXTENSIONS, IMAGE_EXTENSIONS, AppConfig
 from .crop_widget import CropDialog
 from .media_ops import MediaOperations
 from .pdf_export import auto_filename, generate_pdf
+from .theme import COLORS
 from .viewer_window import ViewerWindow
 
 
@@ -192,6 +193,20 @@ class StandaloneViewer(QMainWindow):
             progress.setWindowModality(Qt.WindowModality.WindowModal)
             progress.setMinimumDuration(0)
             progress.setMinimumWidth(400)
+            progress.setStyleSheet(
+                f"QProgressDialog {{ background-color: {COLORS['bg_mid']}; color: {COLORS['text']}; "
+                f"min-height: 160px; padding: 14px; }}"
+                f"QProgressBar {{ background-color: {COLORS['bg_light']}; border: none; "
+                f"border-radius: 6px; min-height: 22px; max-height: 22px; text-align: center; "
+                f"font-size: 12px; font-weight: 600; color: {COLORS['text']}; "
+                f"margin-bottom: 14px; }}"
+                f"QProgressBar::chunk {{ background-color: {COLORS['accent']}; border-radius: 6px; }}"
+                f"QLabel {{ color: {COLORS['text']}; font-size: 13px; margin-bottom: 8px; }}"
+                f"QPushButton {{ background-color: {COLORS['danger']}; color: #fff; "
+                f"border: none; border-radius: 6px; padding: 6px 20px; "
+                f"font-weight: 700; margin-top: 6px; }}"
+                f"QPushButton:hover {{ background-color: #f44336; }}"
+            )
             progress.show()
             QApplication.processEvents()
 
