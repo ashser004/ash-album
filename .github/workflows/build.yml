@@ -40,11 +40,32 @@ jobs:
         run: |
           pyinstaller --onefile --windowed --clean --noconfirm --icon=icon.png --add-data "icon.png;." --name "Ash Album" main.py
 
-      - name: Upload Windows artifact
+      - name: Convert icon.png to icon.ico
+        shell: cmd
+        run: |
+          python -c "from PIL import Image; img = Image.open('icon.png').convert('RGBA'); img.save('icon.ico', format='ICO', sizes=[(256,256),(48,48),(32,32),(16,16)])"
+
+      - name: Install Inno Setup
+        shell: cmd
+        run: |
+          choco install innosetup --no-progress -y
+
+      - name: Build Setup EXE with Inno Setup
+        shell: cmd
+        run: |
+          "C:\Program Files (x86)\Inno Setup 6\iscc.exe" installer.iss
+
+      - name: Upload Windows portable EXE artifact
         uses: actions/upload-artifact@v4
         with:
           name: windows-exe
-          path: dist/Ash Album.exe
+          path: "dist/Ash Album.exe"
+
+      - name: Upload Windows Setup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-setup
+          path: "dist/Ash Album Setup.exe"
 
   # ──────────────────────────────────────────────
   #  Linux (Debian/Ubuntu/Mint)  →  .deb
@@ -171,10 +192,16 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Download Windows artifact
+      - name: Download Windows portable EXE
         uses: actions/download-artifact@v4
         with:
           name: windows-exe
+          path: artifacts/
+
+      - name: Download Windows Setup EXE
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-setup
           path: artifacts/
 
       - name: Download Linux artifact
