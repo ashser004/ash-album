@@ -11,6 +11,9 @@ import platform
 import subprocess
 import sys
 
+# Suppress console window for subprocess calls on Windows
+_CREATE_NO_WINDOW = 0x08000000 if platform.system() == "Windows" else 0
+
 
 # Extensions we care about
 TARGET_EXTENSIONS = (".jpg", ".jpeg", ".png")
@@ -51,26 +54,38 @@ def is_default_for_images() -> bool:
 
 
 def _win_is_default() -> bool:
-    """Check the Windows UserChoice registry keys.
+    """Check whether Ash Album is the default handler on Windows.
 
-    Accepts any ProgId whose resolved shell\\open\\command points to our
-    exe, so it works whether installed (AshAlbum.Image) or portable
-    (Applications\\Ash Album.exe / direct file association).
+    Uses multiple strategies so it works regardless of how the default
+    was set (installer ProgId, Open-with dialog, Settings panel, etc.):
+      1. Read the UserChoice ProgId and compare to known values.
+      2. Resolve the ProgId's shell\\open\\command and look for our exe.
+      3. Fallback: query with ``reg.exe`` if winreg fails in frozen builds.
     """
+    # Strategy A — winreg
+    result = _win_check_via_winreg()
+    if result is not None:
+        return result
+
+    # Strategy B — subprocess ``reg query`` (works even if winreg is
+    # unavailable or broken in PyInstaller bundles)
+    return _win_check_via_subprocess()
+
+
+def _win_check_via_winreg() -> bool | None:
+    """Return True/False via winreg, or None if winreg isn't usable."""
     try:
         import winreg
     except ImportError:
-        return False
+        return None
 
-    # ProgIds we can recognise without resolving the command chain
-    _KNOWN_PROGIDS = {
-        _WINDOWS_PROGID.lower(),                    # ashalbum.image
+    _KNOWN = {
+        _WINDOWS_PROGID.lower(),            # ashalbum.image
         "applications\\ash album.exe",
         "ashalbum",
     }
 
     for ext in TARGET_EXTENSIONS:
-        # 1. Read UserChoice
         try:
             uc_path = (
                 rf"Software\Microsoft\Windows\CurrentVersion\Explorer"
@@ -79,41 +94,116 @@ def _win_is_default() -> bool:
             with winreg.OpenKey(winreg.HKEY_CURRENT_USER, uc_path) as key:
                 prog_id, _ = winreg.QueryValueEx(key, "ProgId")
         except OSError:
-            return False  # extension has no UserChoice → not set
+            return False
 
-        prog_id_lower = prog_id.lower()
+        low = prog_id.lower()
 
-        # 2. Fast path — known ProgId
-        if prog_id_lower in _KNOWN_PROGIDS:
+        # Fast match on known ProgIds
+        if low in _KNOWN:
+            continue
+        # Substring match (covers e.g. "AppXxyz..." with embedded name)
+        if "ashalbum" in low or "ash album" in low:
             continue
 
-        # 3. Slow path — resolve the ProgId to its shell open command
-        #    and check whether it references our exe
-        resolved = _win_resolve_command(prog_id, winreg)
-        if resolved and "ash album" in resolved.lower():
+        # Resolve the ProgId → shell\open\command
+        cmd = _win_resolve_command(prog_id, winreg)
+        if cmd and "ash album" in cmd.lower():
             continue
 
-        # Everything else means we are NOT the default for this ext
         return False
 
     return True
 
 
 def _win_resolve_command(prog_id: str, winreg) -> str:
-    """Return the shell\\open\\command string for *prog_id*, or ''."""
-    # Try HKCU first, then HKCR (HKCR merges HKCU+HKLM automatically)
-    paths_to_try = [
-        (winreg.HKEY_CURRENT_USER,  rf"Software\Classes\{prog_id}\shell\open\command"),
+    """Return the shell\\open\\command string for *prog_id*, or ''.
+    
+    Handles both normal ProgIds and Windows 10/11 AppX hashed ProgIds.
+    """
+    # For AppX hashes, the command is in HKCR under the hash itself
+    paths = [
         (winreg.HKEY_CLASSES_ROOT,  rf"{prog_id}\shell\open\command"),
+        (winreg.HKEY_CURRENT_USER,  rf"Software\Classes\{prog_id}\shell\open\command"),
+        # Sometimes AppX points to an Application.Reference
+        (winreg.HKEY_CLASSES_ROOT,  rf"{prog_id}\Application"),
     ]
-    for hive, path in paths_to_try:
+    
+    for hive, path in paths:
         try:
             with winreg.OpenKey(hive, path) as key:
-                cmd, _ = winreg.QueryValueEx(key, "")
-                return cmd
+                # Try default value first
+                try:
+                    cmd, _ = winreg.QueryValueEx(key, "")
+                    if cmd:
+                        return cmd
+                except OSError:
+                    pass
+                # For Application keys, check DelegateExecute or ApplicationName
+                try:
+                    val, _ = winreg.QueryValueEx(key, "ApplicationName")
+                    if val:
+                        return val
+                except OSError:
+                    pass
         except OSError:
             continue
+    
     return ""
+
+
+def _win_check_via_subprocess() -> bool:
+    """Fallback: query the actual executable path for AppX and other ProgIds.
+    
+    Reads the shell\\open\\command directly from the ProgId stored in UserChoice,
+    including AppX hashed ProgIds that Windows 10/11 create.
+    """
+    for ext in TARGET_EXTENSIONS:
+        try:
+            # Get the ProgId from UserChoice
+            result = subprocess.run(
+                [
+                    "reg", "query",
+                    rf"HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\{ext}\UserChoice",
+                    "/v", "ProgId",
+                ],
+                capture_output=True, text=True, timeout=5, creationflags=_CREATE_NO_WINDOW
+            )
+            
+            if result.returncode != 0:
+                return False
+            
+            # Extract ProgId value from output
+            for line in result.stdout.splitlines():
+                if "ProgId" in line and "REG_SZ" in line:
+                    parts = line.split("REG_SZ", 1)
+                    if len(parts) == 2:
+                        prog_id = parts[1].strip()
+                        break
+            else:
+                return False
+            
+            # Now query the shell\open\command for this ProgId
+            result = subprocess.run(
+                [
+                    "reg", "query",
+                    rf"HKCR\{prog_id}\shell\open\command",
+                    "/ve",  # query default value
+                ],
+                capture_output=True, text=True, timeout=5, creationflags=_CREATE_NO_WINDOW
+            )
+            
+            output_lower = result.stdout.lower()
+            
+            # Check if the command points to our exe
+            if "ash album" in output_lower or "ashalbum" in output_lower:
+                continue
+            
+            return False
+            
+        except Exception:
+            return False
+    
+    return True
 
 
 def _linux_is_default() -> bool:
