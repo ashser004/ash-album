@@ -51,25 +51,69 @@ def is_default_for_images() -> bool:
 
 
 def _win_is_default() -> bool:
-    """Check the Windows UserChoice registry keys."""
+    """Check the Windows UserChoice registry keys.
+
+    Accepts any ProgId whose resolved shell\\open\\command points to our
+    exe, so it works whether installed (AshAlbum.Image) or portable
+    (Applications\\Ash Album.exe / direct file association).
+    """
     try:
         import winreg
     except ImportError:
         return False
 
+    # ProgIds we can recognise without resolving the command chain
+    _KNOWN_PROGIDS = {
+        _WINDOWS_PROGID.lower(),                    # ashalbum.image
+        "applications\\ash album.exe",
+        "ashalbum",
+    }
+
     for ext in TARGET_EXTENSIONS:
+        # 1. Read UserChoice
         try:
-            key_path = (
+            uc_path = (
                 rf"Software\Microsoft\Windows\CurrentVersion\Explorer"
                 rf"\FileExts\{ext}\UserChoice"
             )
-            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path) as key:
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, uc_path) as key:
                 prog_id, _ = winreg.QueryValueEx(key, "ProgId")
-                if prog_id != _WINDOWS_PROGID:
-                    return False
-        except (OSError, FileNotFoundError):
-            return False
+        except OSError:
+            return False  # extension has no UserChoice → not set
+
+        prog_id_lower = prog_id.lower()
+
+        # 2. Fast path — known ProgId
+        if prog_id_lower in _KNOWN_PROGIDS:
+            continue
+
+        # 3. Slow path — resolve the ProgId to its shell open command
+        #    and check whether it references our exe
+        resolved = _win_resolve_command(prog_id, winreg)
+        if resolved and "ash album" in resolved.lower():
+            continue
+
+        # Everything else means we are NOT the default for this ext
+        return False
+
     return True
+
+
+def _win_resolve_command(prog_id: str, winreg) -> str:
+    """Return the shell\\open\\command string for *prog_id*, or ''."""
+    # Try HKCU first, then HKCR (HKCR merges HKCU+HKLM automatically)
+    paths_to_try = [
+        (winreg.HKEY_CURRENT_USER,  rf"Software\Classes\{prog_id}\shell\open\command"),
+        (winreg.HKEY_CLASSES_ROOT,  rf"{prog_id}\shell\open\command"),
+    ]
+    for hive, path in paths_to_try:
+        try:
+            with winreg.OpenKey(hive, path) as key:
+                cmd, _ = winreg.QueryValueEx(key, "")
+                return cmd
+        except OSError:
+            continue
+    return ""
 
 
 def _linux_is_default() -> bool:
