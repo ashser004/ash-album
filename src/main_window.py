@@ -49,6 +49,7 @@ from .config import (
     AppConfig,
 )
 from .crop_widget import CropDialog
+from .default_app import is_default_for_images, open_default_apps_settings
 from .gallery_widget import GalleryWidget
 from .media_ops import MediaOperations
 from .models import MediaItem
@@ -197,6 +198,24 @@ class MainWindow(QMainWindow):
         title = QLabel(APP_NAME.upper())
         title.setObjectName("titleLabel")
         lay.addWidget(title)
+
+        lay.addSpacing(16)
+
+        # "Set as Default" button — hidden when already the default
+        self._default_btn = QPushButton("☆  Set as Default")
+        self._default_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._default_btn.setFixedHeight(30)
+        self._default_btn.setStyleSheet(
+            f"QPushButton {{ background-color: {COLORS['warning']}; color: #111; "
+            f"border: none; border-radius: 5px; "
+            f"padding: 4px 14px; font-weight: 700; font-size: 11px; }}"
+            f"QPushButton:hover {{ background-color: #ffc107; }}"
+        )
+        self._default_btn.clicked.connect(self._on_set_default_clicked)
+        lay.addWidget(self._default_btn)
+
+        # Visibility will be set after the window shows
+        self._default_btn.setVisible(not is_default_for_images())
 
         lay.addStretch()
 
@@ -1175,6 +1194,25 @@ class MainWindow(QMainWindow):
 
         # Restart scan
         QTimer.singleShot(200, self._start_scan)
+
+    # ================================================================
+    #  Set as Default handler
+    # ================================================================
+
+    def _on_set_default_clicked(self):
+        """Open OS default-app settings, then re-check after a delay."""
+        opened = open_default_apps_settings()
+        if opened:
+            self._show_toast("Opening Default Apps settings…", 2500)
+            # Re-check after user might have changed the setting
+            QTimer.singleShot(5000, self._refresh_default_btn)
+            QTimer.singleShot(15000, self._refresh_default_btn)
+        else:
+            self._show_toast("Could not open settings", 2000)
+
+    def _refresh_default_btn(self):
+        """Show / hide the 'Set as Default' button based on current state."""
+        self._default_btn.setVisible(not is_default_for_images())
 
     # ================================================================
     #  Cleanup

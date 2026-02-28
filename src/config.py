@@ -98,6 +98,7 @@ class AppConfig:
 
     def __init__(self):
         self.base_dir: Path = DEFAULT_BASE_DIR
+        self.default_app_asked: bool = False
         self._update_dirs()
 
     # ---- public API ----
@@ -109,6 +110,7 @@ class AppConfig:
                 with open(self.config_file, "r", encoding="utf-8") as fh:
                     data = json.load(fh)
                 self.base_dir = Path(data.get("base_dir", str(DEFAULT_BASE_DIR)))
+                self.default_app_asked = data.get("default_app_asked", False)
                 self._update_dirs()
                 return True
             except Exception:
@@ -121,7 +123,10 @@ class AppConfig:
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.hidden_dir.mkdir(parents=True, exist_ok=True)
         with open(self.config_file, "w", encoding="utf-8") as fh:
-            json.dump({"base_dir": str(self.base_dir)}, fh, indent=2)
+            json.dump({
+                "base_dir": str(self.base_dir),
+                "default_app_asked": self.default_app_asked,
+            }, fh, indent=2)
 
     def set_base_dir(self, path: str | Path):
         self.base_dir = Path(path)
