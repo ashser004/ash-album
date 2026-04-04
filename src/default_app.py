@@ -21,6 +21,10 @@ TARGET_EXTENSIONS = (".jpg", ".jpeg", ".png")
 # Our ProgId — must match what the Inno Setup installer registers
 _WINDOWS_PROGID = "AshAlbum.Image"
 
+# Registry location for the one-time "Set as Default" dismissal flag.
+_WINDOWS_UI_KEY = r"Software\AshAlbum\UI"
+_WINDOWS_HIDE_DEFAULT_BUTTON_VALUE = "HideDefaultButton"
+
 # Desktop entry name used on Linux .deb installs
 _LINUX_DESKTOP_ENTRY = "ash-album.desktop"
 
@@ -30,13 +34,71 @@ _LINUX_MIME_TYPES = [
     "image/png",
 ]
 
-
 def _is_windows() -> bool:
     return platform.system() == "Windows"
 
 
 def _is_linux() -> bool:
     return platform.system() == "Linux"
+
+
+# ------------------------------------------------------------------
+#  Toolbar prompt dismissal state
+# ------------------------------------------------------------------
+
+def should_show_default_button(config=None) -> bool:
+    """Return True when the header should show the Set as Default button."""
+    if is_default_for_images():
+        return False
+    if _is_windows():
+        return not _win_default_button_hidden()
+    if config is not None:
+        return not bool(getattr(config, "default_app_asked", False))
+    return True
+
+
+def set_default_button_hidden(hidden: bool = True, config=None) -> bool:
+    """Persist the one-time dismissal flag for the Set as Default button."""
+    if _is_windows():
+        return _win_set_default_button_hidden(hidden)
+    if config is not None:
+        setattr(config, "default_app_asked", hidden)
+        return True
+    return False
+
+
+def _win_default_button_hidden() -> bool:
+    try:
+        import winreg
+    except ImportError:
+        return False
+
+    try:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, _WINDOWS_UI_KEY) as key:
+            value, _ = winreg.QueryValueEx(key, _WINDOWS_HIDE_DEFAULT_BUTTON_VALUE)
+        return str(value).strip().lower() in {"1", "true", "yes", "on"}
+    except OSError:
+        return False
+
+
+def _win_set_default_button_hidden(hidden: bool) -> bool:
+    try:
+        import winreg
+    except ImportError:
+        return False
+
+    try:
+        with winreg.CreateKey(winreg.HKEY_CURRENT_USER, _WINDOWS_UI_KEY) as key:
+            winreg.SetValueEx(
+                key,
+                _WINDOWS_HIDE_DEFAULT_BUTTON_VALUE,
+                0,
+                winreg.REG_SZ,
+                "1" if hidden else "0",
+            )
+        return True
+    except OSError:
+        return False
 
 
 # ------------------------------------------------------------------

@@ -15,7 +15,7 @@ from datetime import datetime, timedelta
 from functools import partial
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import Qt, QTimer, QPoint
 from PySide6.QtGui import QColor, QFont, QPixmap, QImage
 from PySide6.QtWidgets import (
     QApplication,
@@ -49,9 +49,13 @@ from .config import (
     AppConfig,
 )
 from .crop_widget import CropDialog
-from .default_app import is_default_for_images, open_default_apps_settings
+from .default_app import (
+    open_default_apps_settings,
+    set_default_button_hidden,
+    should_show_default_button,
+)
 from .gallery_widget import GalleryWidget
-from .media_ops import MediaOperations
+from .media_ops import MediaOperations, copy_files_to_clipboard
 from .models import MediaItem
 from .pdf_export import auto_filename, generate_pdf
 from .pdf_viewer import PDFViewerWindow
@@ -74,6 +78,45 @@ TAB_HIDDEN = "HIDDEN"
 
 TAB_ORDER = [TAB_ALL, TAB_PHOTOS, TAB_VIDEOS, TAB_RECENT,
              TAB_SCREENSHOTS, TAB_FOLDERS, TAB_PDF_PNG, TAB_HIDDEN]
+
+
+class _TipPopup(QFrame):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowFlags(Qt.WindowType.Popup | Qt.WindowType.FramelessWindowHint)
+        self.setObjectName("infoTipPopup")
+
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(12, 10, 12, 10)
+        lay.setSpacing(0)
+
+        label = QLabel("Tip: Hold Ctrl and click thumbnails to select multiple files.")
+        label.setWordWrap(True)
+        label.setFixedWidth(240)
+        label.setStyleSheet(f"color: {COLORS['text']}; font-size: 11px;")
+        lay.addWidget(label)
+
+        self.setStyleSheet(
+            f"QFrame#infoTipPopup {{ background-color: {COLORS['bg_light']}; "
+            f"border: 1px solid {COLORS['border']}; border-radius: 8px; }}"
+        )
+
+    def show_anchored_to(self, anchor: QWidget):
+        self.adjustSize()
+        pos = anchor.mapToGlobal(QPoint(0, anchor.height() + 8))
+        screen = QApplication.screenAt(pos) or QApplication.primaryScreen()
+        if screen:
+            geo = screen.availableGeometry()
+            x = max(geo.left() + 8, min(pos.x(), geo.right() - self.width() - 8))
+            y = pos.y()
+            if y + self.height() > geo.bottom() - 8:
+                y = anchor.mapToGlobal(QPoint(0, -self.height() - 8)).y()
+            y = max(geo.top() + 8, y)
+            self.move(x, y)
+        else:
+            self.move(pos)
+        self.show()
+        self.raise_()
 
 
 class MainWindow(QMainWindow):
@@ -103,6 +146,9 @@ class MainWindow(QMainWindow):
 
         # ---- active viewer (for confirm_removal callbacks) ----
         self._active_viewer: ViewerWindow | None = None
+
+        # ---- header help popup ----
+        self._info_popup = _TipPopup(self)
 
         # ---- media ops ----
         self._ops = MediaOperations(self.cfg.hidden_dir)
@@ -215,9 +261,23 @@ class MainWindow(QMainWindow):
         lay.addWidget(self._default_btn)
 
         # Visibility will be set after the window shows
-        self._default_btn.setVisible(not is_default_for_images())
+        self._default_btn.setVisible(should_show_default_button(self.cfg))
 
         lay.addStretch()
+
+        self._info_btn = QPushButton("i")
+        self._info_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._info_btn.setFixedSize(28, 28)
+        self._info_btn.setStyleSheet(
+            f"QPushButton {{ background-color: {COLORS['bg_light']}; color: {COLORS['text']}; "
+            f"border: 1px solid {COLORS['border']}; border-radius: 14px; "
+            f"padding: 0px; font-weight: 800; font-size: 13px; }}"
+            f"QPushButton:hover {{ background-color: {COLORS['bg_lighter']}; border-color: {COLORS['accent']}; }}"
+        )
+        self._info_btn.clicked.connect(self._toggle_info_popup)
+        lay.addWidget(self._info_btn)
+
+        lay.addSpacing(8)
 
         # Refresh button
         btn_refresh = QPushButton("⟳  Refresh")
@@ -248,6 +308,12 @@ class MainWindow(QMainWindow):
         lay.addWidget(self._sort_combo)
 
         return w
+
+    def _toggle_info_popup(self):
+        if self._info_popup.isVisible():
+            self._info_popup.hide()
+            return
+        self._info_popup.show_anchored_to(self._info_btn)
 
     # ---- tab bar ----
 
@@ -441,17 +507,32 @@ class MainWindow(QMainWindow):
 
         lay.addStretch()
 
-        btn_pdf = QPushButton("  Generate PDF  ")
-        btn_pdf.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_pdf.setFixedHeight(34)
-        btn_pdf.setStyleSheet(
+        self._btn_copy_sel = QPushButton("Copy")
+        self._btn_copy_sel.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._btn_copy_sel.setFixedHeight(34)
+        self._btn_copy_sel.setStyleSheet(
+            f"QPushButton {{ background-color: {COLORS['success']}; color: #ffffff; "
+            f"border: none; border-radius: 7px; padding: 6px 18px; "
+            f"font-weight: 700; font-size: 12px; }}"
+            f"QPushButton:hover {{ background-color: #5fd07b; }}"
+        )
+        self._btn_copy_sel.clicked.connect(self._copy_selected_images)
+        self._btn_copy_sel.setVisible(False)
+        lay.addWidget(self._btn_copy_sel)
+
+        self._btn_gen_pdf = QPushButton("  Generate PDF  ")
+        self._btn_gen_pdf.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._btn_gen_pdf.setFixedHeight(34)
+        self._btn_gen_pdf.setStyleSheet(
             f"QPushButton {{ background-color: {COLORS['accent']}; color: #ffffff; "
             f"border: none; border-radius: 7px; padding: 6px 24px; "
             f"font-weight: 700; font-size: 13px; letter-spacing: 0.4px; }}"
             f"QPushButton:hover {{ background-color: {COLORS['accent_hover']}; }}"
         )
-        btn_pdf.clicked.connect(self._generate_pdf)
-        lay.addWidget(btn_pdf)
+        self._btn_gen_pdf.clicked.connect(self._generate_pdf)
+        lay.addWidget(self._btn_gen_pdf)
+
+        self._update_sel_label()
 
         return bar
 
@@ -891,6 +972,27 @@ class MainWindow(QMainWindow):
     def _update_sel_label(self):
         n = len(self._selected_paths)
         self._sel_label.setText(f"{n} selected" if n else "0 selected")
+        if hasattr(self, "_btn_copy_sel"):
+            self._btn_copy_sel.setVisible(bool(self._selected_images_for_copy()))
+
+    def _selected_images_for_copy(self) -> list[str]:
+        images: list[str] = []
+        for path in self._selected_paths:
+            candidate = Path(path)
+            if candidate.suffix.lower() not in IMAGE_EXTENSIONS or not candidate.exists():
+                return []
+            images.append(str(candidate))
+        return images
+
+    def _copy_selected_images(self):
+        images = self._selected_images_for_copy()
+        if not images:
+            self._show_toast("No copyable images selected")
+            return
+        if copy_files_to_clipboard(images):
+            self._show_toast(f"Copied {len(images)} image(s) to clipboard")
+        else:
+            self._show_toast("Could not copy selected files")
 
     # ================================================================
     #  Viewer
@@ -1201,18 +1303,20 @@ class MainWindow(QMainWindow):
 
     def _on_set_default_clicked(self):
         """Open OS default-app settings, then re-check after a delay."""
+        set_default_button_hidden(True, self.cfg)
+        self.cfg.default_app_asked = True
+        self.cfg.save()
+        self._default_btn.hide()
+
         opened = open_default_apps_settings()
         if opened:
             self._show_toast("Opening Default Apps settings…", 2500)
-            # Re-check after user might have changed the setting
-            QTimer.singleShot(5000, self._refresh_default_btn)
-            QTimer.singleShot(15000, self._refresh_default_btn)
         else:
             self._show_toast("Could not open settings", 2000)
 
     def _refresh_default_btn(self):
         """Show / hide the 'Set as Default' button based on current state."""
-        self._default_btn.setVisible(not is_default_for_images())
+        self._default_btn.setVisible(should_show_default_button(self.cfg))
 
     # ================================================================
     #  Cleanup

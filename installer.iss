@@ -86,6 +86,9 @@ Root: HKA; Subkey: "Software\AshAlbum\Capabilities\FileAssociations";   ValueTyp
 Root: HKA; Subkey: "Software\AshAlbum\Capabilities\FileAssociations";   ValueType: string; ValueName: ".jpeg"; ValueData: "AshAlbum.Image"; Flags: uninsdeletekey
 Root: HKA; Subkey: "Software\AshAlbum\Capabilities\FileAssociations";   ValueType: string; ValueName: ".png";  ValueData: "AshAlbum.Image"; Flags: uninsdeletekey
 
+; One-time dismissal flag for the Set as Default toolbar button
+Root: HKCU; Subkey: "Software\AshAlbum\UI"; ValueType: string; ValueName: "HideDefaultButton"; ValueData: "0"; Flags: uninsdeletekey
+
 ; ---- Optional: set UserChoice directly (only when the user ticks the checkbox) ----
 ; NOTE: On Windows 10/11 the OS may ignore direct UserChoice writes and require
 ;       the user to confirm via Settings. The registry entries above ensure Ash Album

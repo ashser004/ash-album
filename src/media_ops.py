@@ -5,11 +5,48 @@ Ash Album — Media operations: delete, hide, unhide, restore.
 from __future__ import annotations
 
 import json
+import os
 import shutil
 from datetime import datetime
 from pathlib import Path
 
+from PySide6.QtCore import QMimeData, QUrl
+from PySide6.QtWidgets import QApplication
 from send2trash import send2trash
+
+
+def copy_files_to_clipboard(paths: list[str]) -> bool:
+    """Copy one or more file paths to the system clipboard as files."""
+    valid_paths: list[str] = []
+    seen: set[str] = set()
+
+    for raw_path in paths:
+        if not raw_path:
+            continue
+
+        path = Path(raw_path)
+        if not path.exists():
+            continue
+
+        try:
+            resolved = str(path.resolve())
+        except OSError:
+            continue
+
+        key = os.path.normcase(resolved)
+        if key in seen:
+            continue
+
+        seen.add(key)
+        valid_paths.append(resolved)
+
+    if not valid_paths:
+        return False
+
+    mime = QMimeData()
+    mime.setUrls([QUrl.fromLocalFile(path) for path in valid_paths])
+    QApplication.clipboard().setMimeData(mime)
+    return True
 
 
 class MediaOperations:

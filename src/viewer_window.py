@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
 )
 
 from .config import VIDEO_EXTENSIONS
+from .media_ops import copy_files_to_clipboard
 from .theme import COLORS
 
 
@@ -164,13 +165,17 @@ class ViewerWindow(QDialog):
         self._btn_hide = _S("Hide", bg="#ff9800", hover="#ffb74d")
         self._btn_hide.clicked.connect(self._on_hide)
 
+        self._btn_copy = _S("Copy", bg="#43c667", hover="#5ad97f")
+        self._btn_copy.clicked.connect(self._on_copy)
+        self._btn_copy.hide()
+
         self._btn_gen_pdf = _S("Generate PDF", bg="#7c5cfc", hover="#9b7dff")
         self._btn_gen_pdf.clicked.connect(self._on_generate_pdf)
         self._btn_gen_pdf.hide()  # shown only in standalone mode
 
         bar_lay.addStretch()
         for b in (self._btn_select, self._btn_crop, self._btn_play,
-                  self._btn_delete, self._btn_hide,
+                  self._btn_delete, self._btn_hide, self._btn_copy,
                   self._btn_gen_pdf):
             bar_lay.addWidget(b)
         bar_lay.addStretch()
@@ -261,6 +266,7 @@ class ViewerWindow(QDialog):
             self._btn_select.setText("Select")
         self._btn_crop.setVisible(not self._is_video)
         self._btn_play.setVisible(self._is_video)
+        self._btn_copy.setVisible(not self._is_video)
 
     def _show_image(self, path: str):
         self._media_stack.setCurrentIndex(0)
@@ -392,6 +398,11 @@ class ViewerWindow(QDialog):
         if path:
             self.request_hide.emit(path)
             # The main window calls confirm_removal() if it succeeded
+
+    def _on_copy(self):
+        path = self._current_path()
+        if path and not self._is_video:
+            copy_files_to_clipboard([path])
 
     def confirm_removal(self, path: str):
         """Called by the main window after a successful delete / hide."""

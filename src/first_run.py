@@ -18,7 +18,11 @@ from PySide6.QtWidgets import (
 )
 
 from .config import AppConfig
-from .default_app import is_default_for_images, open_default_apps_settings
+from .default_app import (
+    is_default_for_images,
+    open_default_apps_settings,
+    set_default_button_hidden,
+)
 from .theme import COLORS
 
 
@@ -200,10 +204,12 @@ class FirstRunDialog(QDialog):
     def _finish_skip_default(self):
         self.config.default_app_asked = True
         self.config.save()
+        set_default_button_hidden(True, self.config)
         self.accept()
 
     def _finish_set_default(self):
         self.config.default_app_asked = True
         self.config.save()
+        set_default_button_hidden(True, self.config)
         open_default_apps_settings()
         self.accept()
