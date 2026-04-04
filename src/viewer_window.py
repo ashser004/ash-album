@@ -51,6 +51,9 @@ class ViewerWindow(QDialog):
         self._ready = False  # guard for resizeEvent
         self._current_pixmap: QPixmap | None = None
         self._is_video = False
+        self._standalone_mode = False
+        self._copy_feedback_active = False
+        self._copy_button_text = "Copy"
 
         super().__init__(parent)
         self.setWindowTitle("Ash Album — Viewer")
@@ -63,6 +66,10 @@ class ViewerWindow(QDialog):
 
         self._build_ui()
         self._bind_shortcuts()
+
+        self._copy_feedback_timer = QTimer(self)
+        self._copy_feedback_timer.setSingleShot(True)
+        self._copy_feedback_timer.timeout.connect(self._restore_copy_button)
 
         # Mark ready *before* showMaximized so resizeEvent can work
         self._ready = True
@@ -238,6 +245,8 @@ class ViewerWindow(QDialog):
         if not self._ready:
             return
 
+        self._restore_copy_button()
+
         # Stop any existing playback
         self._media_player.stop()
 
@@ -401,8 +410,22 @@ class ViewerWindow(QDialog):
 
     def _on_copy(self):
         path = self._current_path()
-        if path and not self._is_video:
-            copy_files_to_clipboard([path])
+        if not path or self._is_video:
+            return
+        if copy_files_to_clipboard([path]):
+            self._show_copy_feedback()
+
+    def _show_copy_feedback(self):
+        self._copy_feedback_active = True
+        self._btn_copy.setText("Copied")
+        self._copy_feedback_timer.start(5000)
+
+    def _restore_copy_button(self):
+        if not self._copy_feedback_active:
+            return
+        self._copy_feedback_timer.stop()
+        self._copy_feedback_active = False
+        self._btn_copy.setText(self._copy_button_text)
 
     def confirm_removal(self, path: str):
         """Called by the main window after a successful delete / hide."""
@@ -420,6 +443,9 @@ class ViewerWindow(QDialog):
 
     def set_standalone_mode(self, standalone: bool):
         """Show/hide controls that are only needed in standalone (file-association) mode."""
+        self._standalone_mode = standalone
+        if not standalone:
+            self._restore_copy_button()
         self._btn_gen_pdf.setVisible(standalone)
 
     def _on_generate_pdf(self):
