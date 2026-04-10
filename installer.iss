@@ -69,7 +69,7 @@ Name: "{autodesktop}\{#MyAppName}";     Filename: "{app}\{#MyAppExeName}"; Tasks
 ; ProgId: AshAlbum.Image
 Root: HKA; Subkey: "Software\Classes\AshAlbum.Image";                         ValueType: string; ValueName: "";            ValueData: "Ash Album Image";                      Flags: uninsdeletekey
 Root: HKA; Subkey: "Software\Classes\AshAlbum.Image\DefaultIcon";             ValueType: string; ValueName: "";            ValueData: "{app}\{#MyAppExeName},0";               Flags: uninsdeletekey
-Root: HKA; Subkey: "Software\Classes\AshAlbum.Image\shell\open\command";      ValueType: string; ValueName: "";            ValueData: """{app}\{#MyAppExeName}"" ""%1""";       Flags: uninsdeletekey
+Root: HKA; Subkey: "Software\Classes\AshAlbum.Image\shell\open\command";      ValueType: string; ValueName: "";            ValueData: """{app}\{#MyAppExeName}"" --standalone ""%1""";       Flags: uninsdeletekey
 
 ; Tell Windows our app supports these extensions (appears in "Open with")
 Root: HKA; Subkey: "Software\Classes\.jpg\OpenWithProgids";   ValueType: string; ValueName: "AshAlbum.Image"; ValueData: ""; Flags: uninsdeletevalue

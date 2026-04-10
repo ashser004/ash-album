@@ -35,25 +35,25 @@ from src.main_window import MainWindow
 
 def _get_file_arg():
     """Return an absolute image/video path from sys.argv, or None."""
-    if len(sys.argv) < 2:
-        return None
-    candidate = sys.argv[1]
-    if os.path.isfile(candidate):
-        ext = os.path.splitext(candidate)[1].lower()
-        if ext in ALL_EXTENSIONS:
-            return os.path.abspath(candidate)
+    for candidate in sys.argv[1:]:
+        if candidate.startswith("-"):
+            continue
+        if os.path.isfile(candidate):
+            ext = os.path.splitext(candidate)[1].lower()
+            if ext in ALL_EXTENSIONS:
+                return os.path.abspath(candidate)
     return None
 
 
 def _get_pdf_arg():
     """Return an absolute PDF path from sys.argv, or None."""
-    if len(sys.argv) < 2:
-        return None
-    candidate = sys.argv[1]
-    if os.path.isfile(candidate):
-        ext = os.path.splitext(candidate)[1].lower()
-        if ext in PDF_EXTENSIONS:
-            return os.path.abspath(candidate)
+    for candidate in sys.argv[1:]:
+        if candidate.startswith("-"):
+            continue
+        if os.path.isfile(candidate):
+            ext = os.path.splitext(candidate)[1].lower()
+            if ext in PDF_EXTENSIONS:
+                return os.path.abspath(candidate)
     return None
 
 
