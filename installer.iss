@@ -54,7 +54,7 @@ Name: "fileassoc_jpeg"; Description: "Associate .jpeg files with {#MyAppName}"; 
 Name: "fileassoc_png";  Description: "Associate .png files with {#MyAppName}";  GroupDescription: "File Associations:"; Flags: unchecked
 
 [Files]
-Source: "dist\Ash Album.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "dist\Ash Album\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "icon.png";           DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
