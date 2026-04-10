@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import Qt, Signal, QSize, QTimer, QUrl
+from PySide6.QtCore import Qt, Signal, QSize, QTimer, QUrl, QEvent
 from PySide6.QtGui import QFont, QPixmap, QKeySequence, QShortcut, QImage
 from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput
 from PySide6.QtMultimediaWidgets import QVideoWidget
@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QPushButton,
+    QScrollArea,
     QStackedWidget,
     QVBoxLayout,
     QWidget,
@@ -51,9 +52,12 @@ class ViewerWindow(QDialog):
         self._ready = False  # guard for resizeEvent
         self._current_pixmap: QPixmap | None = None
         self._is_video = False
-        self._standalone_mode = False
         self._copy_feedback_active = False
         self._copy_button_text = "Copy"
+        self._zoom_factor = 1.0
+        self._pinch_base_zoom = 1.0
+        self._zoom_min = 0.25
+        self._zoom_max = 6.0
 
         super().__init__(parent)
         self.setWindowTitle("Ash Album — Viewer")
@@ -102,13 +106,22 @@ class ViewerWindow(QDialog):
         )
 
         # Page 0: image label
+        self._image_scroll = QScrollArea()
+        self._image_scroll.setWidgetResizable(False)
+        self._image_scroll.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._image_scroll.setStyleSheet("background-color: transparent; border: none;")
+        self._image_scroll.viewport().setAttribute(Qt.WidgetAttribute.WA_AcceptTouchEvents, True)
+        self._image_scroll.viewport().grabGesture(Qt.GestureType.PinchGesture)
+        self._image_scroll.viewport().installEventFilter(self)
+
         self._image_label = QLabel()
         self._image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._image_label.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
+            QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed
         )
         self._image_label.setStyleSheet("background-color: transparent;")
-        self._media_stack.addWidget(self._image_label)
+        self._image_scroll.setWidget(self._image_label)
+        self._media_stack.addWidget(self._image_scroll)
 
         # Page 1: video widget
         self._video_widget = QVideoWidget()
@@ -278,29 +291,105 @@ class ViewerWindow(QDialog):
         self._btn_copy.setVisible(not self._is_video)
 
     def _show_image(self, path: str):
+        self._zoom_factor = 1.0
+        self._pinch_base_zoom = 1.0
         self._media_stack.setCurrentIndex(0)
         pm = QPixmap(path)
         if pm and not pm.isNull():
             self._current_pixmap = pm
-            self._scale_image()
+            self._apply_image_zoom(preserve_center=False)
         else:
             self._current_pixmap = None
             self._image_label.setText("Cannot load file")
 
-    def _scale_image(self):
-        """Scale and display the cached pixmap to fit the image label."""
+    def _apply_image_zoom(self, preserve_center: bool = True):
+        """Scale the current pixmap relative to the viewport and zoom factor."""
         if not self._current_pixmap:
             return
-        label_size = self._image_label.size()
-        if label_size.width() > 10 and label_size.height() > 10:
-            scaled = self._current_pixmap.scaled(
-                label_size,
-                Qt.AspectRatioMode.KeepAspectRatio,
-                Qt.TransformationMode.SmoothTransformation,
-            )
-            self._image_label.setPixmap(scaled)
+
+        viewport = self._image_scroll.viewport().size()
+        if viewport.width() <= 0 or viewport.height() <= 0:
+            return
+
+        old_size = self._image_label.size()
+        hbar = self._image_scroll.horizontalScrollBar()
+        vbar = self._image_scroll.verticalScrollBar()
+
+        if preserve_center:
+            old_center_x = hbar.value() + viewport.width() / 2
+            old_center_y = vbar.value() + viewport.height() / 2
+            center_ratio_x = 0.5 if old_size.width() <= viewport.width() else old_center_x / max(1, old_size.width())
+            center_ratio_y = 0.5 if old_size.height() <= viewport.height() else old_center_y / max(1, old_size.height())
         else:
-            self._image_label.setPixmap(self._current_pixmap)
+            center_ratio_x = 0.5
+            center_ratio_y = 0.5
+
+        fit_scale = min(
+            viewport.width() / self._current_pixmap.width(),
+            viewport.height() / self._current_pixmap.height(),
+        )
+        fit_scale = max(fit_scale, 0.05)
+        target_scale = fit_scale * self._zoom_factor
+        target_width = max(1, int(self._current_pixmap.width() * target_scale))
+        target_height = max(1, int(self._current_pixmap.height() * target_scale))
+
+        scaled = self._current_pixmap.scaled(
+            QSize(target_width, target_height),
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation,
+        )
+
+        self._image_label.setPixmap(scaled)
+        self._image_label.resize(scaled.size())
+
+        if preserve_center:
+            if scaled.width() <= viewport.width():
+                hbar.setValue(0)
+            else:
+                hbar.setValue(int(center_ratio_x * scaled.width() - viewport.width() / 2))
+            if scaled.height() <= viewport.height():
+                vbar.setValue(0)
+            else:
+                vbar.setValue(int(center_ratio_y * scaled.height() - viewport.height() / 2))
+        else:
+            hbar.setValue(max(0, int((scaled.width() - viewport.width()) / 2)))
+            vbar.setValue(max(0, int((scaled.height() - viewport.height()) / 2)))
+
+    def _set_zoom_factor(self, zoom: float):
+        zoom = max(self._zoom_min, min(self._zoom_max, zoom))
+        if abs(zoom - self._zoom_factor) < 0.001:
+            return
+        self._zoom_factor = zoom
+        self._apply_image_zoom(preserve_center=True)
+
+    def _handle_image_zoom_gesture(self, event) -> bool:
+        if self._is_video or not self._current_pixmap:
+            return False
+
+        if event.type() == QEvent.Type.Wheel:
+            if not (event.modifiers() & Qt.KeyboardModifier.ControlModifier):
+                return False
+            delta = event.angleDelta().y()
+            if delta == 0:
+                return True
+            factor = 1.12 ** (delta / 120.0)
+            self._set_zoom_factor(self._zoom_factor * factor)
+            event.accept()
+            return True
+
+        if event.type() == QEvent.Type.Gesture:
+            pinch = event.gesture(Qt.GestureType.PinchGesture)
+            if pinch is None:
+                return False
+            state = pinch.state()
+            if state == Qt.GestureState.GestureStarted:
+                self._pinch_base_zoom = self._zoom_factor
+            elif state in (Qt.GestureState.GestureUpdated, Qt.GestureState.GestureFinished):
+                self._set_zoom_factor(self._pinch_base_zoom * pinch.totalScaleFactor())
+            event.accept()
+            return True
+
+        return False
 
     def _show_video(self, path: str):
         self._current_pixmap = None
@@ -443,9 +532,6 @@ class ViewerWindow(QDialog):
 
     def set_standalone_mode(self, standalone: bool):
         """Show/hide controls that are only needed in standalone (file-association) mode."""
-        self._standalone_mode = standalone
-        if not standalone:
-            self._restore_copy_button()
         self._btn_gen_pdf.setVisible(standalone)
 
     def _on_generate_pdf(self):
@@ -459,7 +545,13 @@ class ViewerWindow(QDialog):
             return
         # Only re-scale images; video widget auto-resizes
         if not self._is_video and self._current_pixmap:
-            self._scale_image()
+            self._apply_image_zoom(preserve_center=True)
+
+    def eventFilter(self, watched, event):
+        if watched is self._image_scroll.viewport():
+            if self._handle_image_zoom_gesture(event):
+                return True
+        return super().eventFilter(watched, event)
 
     def closeEvent(self, event):
         self._media_player.stop()

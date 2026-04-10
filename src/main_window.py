@@ -10,6 +10,7 @@ scanning automatically appears in the FOLDERS tab sidebar.
 from __future__ import annotations
 
 import os
+import platform
 from collections import OrderedDict
 from datetime import datetime, timedelta
 from functools import partial
@@ -61,6 +62,13 @@ from .pdf_export import auto_filename, generate_pdf
 from .pdf_viewer import PDFViewerWindow
 from .scanner import ScannerWorker
 from .theme import COLORS
+from .update_dialog import UpdateDialog
+from .update_manager import (
+    DEFAULT_MANIFEST_URL,
+    UpdateManifest,
+    UpdateCheckWorker,
+    cleanup_download_cache,
+)
 from .thumb_loader import ThumbnailWorker
 from .viewer_window import ViewerWindow
 
@@ -150,8 +158,19 @@ class MainWindow(QMainWindow):
         # ---- header help popup ----
         self._info_popup = _TipPopup(self)
 
+        # ---- update state ----
+        self._update_worker: UpdateCheckWorker | None = None
+        self._update_dialog: UpdateDialog | None = None
+        self._update_busy = False
+        self._update_cooldown_active = False
+        self._update_cooldown_timer = QTimer(self)
+        self._update_cooldown_timer.setSingleShot(True)
+        self._update_cooldown_timer.timeout.connect(self._finish_update_cooldown)
+
         # ---- media ops ----
         self._ops = MediaOperations(self.cfg.hidden_dir)
+
+        cleanup_download_cache(Path(self.cfg.base_dir) / "updates")
 
         # ---- build UI ----
         self._build_ui()
@@ -304,8 +323,25 @@ class MainWindow(QMainWindow):
             self._sort_combo.addItem(display, key)
         # Default to Date Modified (Newest First) → index 4
         self._sort_combo.setCurrentIndex(4)
+        self._sort_combo.setFixedWidth(250)
         self._sort_combo.currentIndexChanged.connect(self._on_sort_changed)
         lay.addWidget(self._sort_combo)
+
+        lay.addSpacing(6)
+
+        self._update_btn = QPushButton("↑")
+        self._update_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._update_btn.setFixedSize(28, 28)
+        self._update_btn.setToolTip("Check for updates")
+        self._update_btn.setStyleSheet(
+            f"QPushButton {{ background-color: {COLORS['success']}; color: #ffffff; "
+            f"border: none; border-radius: 14px; font-weight: 800; font-size: 14px; }}"
+            f"QPushButton:hover {{ background-color: #5fd07b; }}"
+            f"QPushButton:disabled {{ background-color: {COLORS['bg_mid']}; color: {COLORS['text_dim']}; }}"
+        )
+        self._update_btn.clicked.connect(self._on_update_clicked)
+        self._update_btn.setVisible(platform.system() == "Windows")
+        lay.addWidget(self._update_btn)
 
         return w
 
@@ -314,6 +350,58 @@ class MainWindow(QMainWindow):
             self._info_popup.hide()
             return
         self._info_popup.show_anchored_to(self._info_btn)
+
+    def _on_update_clicked(self):
+        if platform.system() != "Windows":
+            return
+        if self._update_busy or not self._update_btn.isEnabled():
+            return
+
+        self._show_toast("Checking for updates...", 2000)
+        self._update_busy = True
+        self._update_cooldown_active = True
+        self._update_btn.setEnabled(False)
+        self._update_cooldown_timer.start(15000)
+
+        if self._update_worker and self._update_worker.isRunning():
+            return
+
+        self._update_worker = UpdateCheckWorker(APP_VERSION, DEFAULT_MANIFEST_URL, self)
+        self._update_worker.update_available.connect(self._on_update_available)
+        self._update_worker.up_to_date.connect(self._on_update_up_to_date)
+        self._update_worker.failed.connect(self._on_update_failed)
+        self._update_worker.finished.connect(self._clear_update_worker)
+        self._update_worker.start()
+
+    def _clear_update_worker(self):
+        self._update_worker = None
+
+    def _finish_update_cooldown(self):
+        self._update_cooldown_active = False
+        self._restore_update_button()
+
+    def _restore_update_button(self):
+        if platform.system() == "Windows" and not self._update_busy and not self._update_cooldown_active:
+            self._update_btn.setEnabled(True)
+
+    def _on_update_available(self, manifest: UpdateManifest | object):
+        self._update_busy = False
+        self._restore_update_button()
+        if not isinstance(manifest, UpdateManifest):
+            return
+        self._update_dialog = UpdateDialog(manifest, Path(self.cfg.base_dir) / "updates", self)
+        self._update_dialog.exec()
+        self._update_dialog = None
+
+    def _on_update_up_to_date(self):
+        self._update_busy = False
+        self._restore_update_button()
+        self._show_toast("You are already up to date", 2500)
+
+    def _on_update_failed(self, message: str):
+        self._update_busy = False
+        self._restore_update_button()
+        self._show_toast("Could not check for updates", 2500)
 
     # ---- tab bar ----
 
