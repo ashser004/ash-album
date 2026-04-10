@@ -16,8 +16,8 @@ from datetime import datetime, timedelta
 from functools import partial
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QTimer, QPoint
-from PySide6.QtGui import QColor, QFont, QPixmap, QImage
+from PySide6.QtCore import Qt, QTimer, QPoint, QSize
+from PySide6.QtGui import QColor, QFont, QPixmap, QImage, QIcon
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -73,6 +73,7 @@ from .thumb_loader import ThumbnailWorker
 from .viewer_window import ViewerWindow
 
 RECENT_DAYS = 30
+BASE_DIR = Path(__file__).resolve().parents[1]
 
 # Tab identifiers
 TAB_ALL = "ALL"
@@ -329,15 +330,16 @@ class MainWindow(QMainWindow):
 
         lay.addSpacing(6)
 
-        self._update_btn = QPushButton("↑")
+        self._update_btn = QPushButton()
         self._update_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._update_btn.setFixedSize(28, 28)
+        self._update_btn.setFixedSize(30, 30)
         self._update_btn.setToolTip("Check for updates")
+        self._update_btn.setIcon(QIcon(str(BASE_DIR / "update.png")))
+        self._update_btn.setIconSize(QSize(24, 24))
         self._update_btn.setStyleSheet(
-            f"QPushButton {{ background-color: {COLORS['success']}; color: #ffffff; "
-            f"border: none; border-radius: 14px; font-weight: 800; font-size: 14px; }}"
-            f"QPushButton:hover {{ background-color: #5fd07b; }}"
-            f"QPushButton:disabled {{ background-color: {COLORS['bg_mid']}; color: {COLORS['text_dim']}; }}"
+            "QPushButton { background-color: transparent; border: none; padding: 0px; }"
+            f"QPushButton:hover {{ background-color: {COLORS['bg_light']}; border-radius: 15px; }}"
+            "QPushButton:disabled { background-color: transparent; }"
         )
         self._update_btn.clicked.connect(self._on_update_clicked)
         self._update_btn.setVisible(platform.system() == "Windows")

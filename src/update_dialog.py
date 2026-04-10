@@ -5,7 +5,6 @@ Ash Album — Update available dialog with download/install flow.
 from __future__ import annotations
 
 from pathlib import Path
-from urllib.parse import urlparse
 
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (
@@ -22,7 +21,6 @@ from PySide6.QtWidgets import (
 from .config import APP_NAME, APP_VERSION
 from .theme import COLORS
 from .update_manager import (
-    DEFAULT_INSTALLER_NAME,
     UpdateDownloadWorker,
     UpdateManifest,
     cleanup_download_cache,
@@ -108,8 +106,7 @@ class UpdateDialog(QDialog):
         self._cleanup_retry_timer.timeout.connect(self._retry_cleanup_after_install)
 
     def _download_filename(self) -> str:
-        name = Path(urlparse(self._manifest.download_url).path).name.strip()
-        return name or DEFAULT_INSTALLER_NAME
+        return self._manifest.installer_name
 
     def _sync_state(self):
         if self._download_complete and self._downloaded_path.exists():

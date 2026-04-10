@@ -11,14 +11,19 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 from urllib.error import URLError, HTTPError
-from urllib.parse import urlparse
-from urllib.request import urlopen
+from urllib.parse import quote, unquote, urlparse
+from urllib.request import Request, urlopen
 
 from PySide6.QtCore import QThread, Signal
 
 DEFAULT_MANIFEST_URL = "https://raw.githubusercontent.com/ashser004/ash-album/main/version.json"
-DEFAULT_INSTALLER_NAME = "Ash.Album.Setup.exe"
+GITHUB_LATEST_RELEASE_URL = "https://api.github.com/repos/ashser004/ash-album/releases/latest"
+DEFAULT_INSTALLER_NAME = "Ash Album Setup.exe"
 DOWNLOAD_CHUNK_SIZE = 64 * 1024
+REQUEST_HEADERS = {
+    "User-Agent": "Ash Album update checker",
+    "Accept": "application/vnd.github+json",
+}
 
 
 @dataclass(slots=True)
@@ -30,7 +35,7 @@ class UpdateManifest:
 
     @property
     def installer_name(self) -> str:
-        name = Path(urlparse(self.download_url).path).name.strip()
+        name = unquote(Path(urlparse(self.download_url).path).name.strip())
         return name or DEFAULT_INSTALLER_NAME
 
 
@@ -56,7 +61,7 @@ def _release_download_url(version: str) -> str:
     cleaned = version.strip().lstrip("vV")
     return (
         f"https://github.com/ashser004/ash-album/releases/download/"
-        f"v{cleaned}/{DEFAULT_INSTALLER_NAME}"
+        f"v{cleaned}/{quote(DEFAULT_INSTALLER_NAME, safe='')}"
     )
 
 
@@ -65,11 +70,13 @@ def _release_page_url(version: str) -> str:
     return f"https://github.com/ashser004/ash-album/releases/tag/v{cleaned}"
 
 
-def fetch_manifest(manifest_url: str = DEFAULT_MANIFEST_URL) -> UpdateManifest:
-    with urlopen(manifest_url, timeout=15) as response:
-        raw = response.read().decode("utf-8")
+def _read_json(url: str, timeout: int = 15) -> dict[str, Any]:
+    request = Request(url, headers=REQUEST_HEADERS)
+    with urlopen(request, timeout=timeout) as response:
+        return json.loads(response.read().decode("utf-8"))
 
-    data: dict[str, Any] = json.loads(raw)
+
+def _manifest_from_version_data(data: dict[str, Any], source_url: str) -> UpdateManifest:
     version = str(data.get("version", "")).strip()
     if not version:
         raise ValueError("version.json does not contain a version field")
@@ -80,8 +87,42 @@ def fetch_manifest(manifest_url: str = DEFAULT_MANIFEST_URL) -> UpdateManifest:
         version=version,
         download_url=download_url,
         release_url=release_url,
-        manifest_url=manifest_url,
+        manifest_url=source_url,
     )
+
+
+def _manifest_from_latest_release(data: dict[str, Any], source_url: str) -> UpdateManifest:
+    tag_name = str(data.get("tag_name", "")).strip()
+    if not tag_name:
+        raise ValueError("GitHub latest release response does not contain a tag_name")
+
+    version = tag_name.lstrip("vV")
+    download_url = _release_download_url(version)
+    release_url = str(data.get("html_url") or _release_page_url(version))
+    return UpdateManifest(
+        version=version,
+        download_url=download_url,
+        release_url=release_url,
+        manifest_url=source_url,
+    )
+
+
+def fetch_manifest(manifest_url: str = DEFAULT_MANIFEST_URL) -> UpdateManifest:
+    errors: list[str] = []
+
+    try:
+        latest_release_data = _read_json(GITHUB_LATEST_RELEASE_URL)
+        return _manifest_from_latest_release(latest_release_data, GITHUB_LATEST_RELEASE_URL)
+    except (HTTPError, URLError, OSError, ValueError, json.JSONDecodeError) as exc:
+        errors.append(f"latest release lookup: {exc}")
+
+    try:
+        version_data = _read_json(manifest_url)
+        return _manifest_from_version_data(version_data, manifest_url)
+    except (HTTPError, URLError, OSError, ValueError, json.JSONDecodeError) as exc:
+        errors.append(f"manifest lookup: {exc}")
+
+    raise ValueError("; ".join(errors) or "Could not fetch update information")
 
 
 class UpdateCheckWorker(QThread):
