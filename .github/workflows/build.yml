@@ -125,7 +125,7 @@ jobs:
           mkdir -p "${PKG_ROOT}/usr/share/ash-album"
 
           # Copy binary
-          cp dist/ash-album "${PKG_ROOT}/usr/bin/ash-album"
+          cp dist/ash-album/ash-album "${PKG_ROOT}/usr/bin/ash-album"
           chmod 755 "${PKG_ROOT}/usr/bin/ash-album"
 
           # Copy icon
