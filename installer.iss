@@ -3,13 +3,12 @@
 ;  Produces: "Ash Album Setup.exe"
 ;
 ;  Prerequisites:
-;    1. Build the portable exe first:
-;       pyinstaller "Ash Album.spec"
-;    2. Place the resulting "Ash Album.exe" in  dist\
-;    3. Ensure icon.png sits in the project root.
-;    4. Convert icon.png → icon.ico (256×256, 48×48, 32×32, 16×16)
+;    1. Build the onedir app first:
+;       pyinstaller --onedir --windowed --clean --noconfirm --icon=icon.png --add-data "icon.png;." --add-data "update.png;." --name "Ash Album" main.py
+;    2. Ensure icon.png sits in the project root.
+;    3. Convert icon.png → icon.ico (256×256, 48×48, 32×32, 16×16)
 ;       and place icon.ico in the project root.
-;    5. Compile this script with Inno Setup 6+:
+;    4. Compile this script with Inno Setup 6+:
 ;       iscc installer.iss
 ;
 ;  Output : dist\Ash Album Setup.exe

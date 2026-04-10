@@ -3,7 +3,7 @@ Ash Album — Entry point.
 
 Usage:
     python main.py
-    pyinstaller --onefile --windowed main.py
+    pyinstaller --onedir --windowed main.py
 """
 
 import sys

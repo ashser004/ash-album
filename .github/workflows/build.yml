@@ -124,8 +124,15 @@ jobs:
           mkdir -p "${PKG_ROOT}/usr/share/icons/hicolor/256x256/apps"
           mkdir -p "${PKG_ROOT}/usr/share/ash-album"
 
-          # Copy binary
-          cp dist/ash-album/ash-album "${PKG_ROOT}/usr/bin/ash-album"
+          # Copy the full PyInstaller onedir payload into the app directory
+          cp -r dist/ash-album/. "${PKG_ROOT}/usr/share/ash-album/"
+          chmod 755 "${PKG_ROOT}/usr/share/ash-album/ash-album"
+
+          # Create a launcher in /usr/bin so the app can be started from PATH
+          cat > "${PKG_ROOT}/usr/bin/ash-album" << 'WRAPPER'
+          #!/bin/sh
+          exec /usr/share/ash-album/ash-album "$@"
+          WRAPPER
           chmod 755 "${PKG_ROOT}/usr/bin/ash-album"
 
           # Copy icon
@@ -186,12 +193,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Download Windows portable EXE
-        uses: actions/download-artifact@v4
-        with:
-          name: windows-exe
-          path: artifacts/
-
       - name: Download Windows Setup EXE
         uses: actions/download-artifact@v4
         with:
