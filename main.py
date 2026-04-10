@@ -63,7 +63,7 @@ def main():
 
     app = QApplication(sys.argv)
     app.setApplicationName("Ash Album")
-    app.setApplicationVersion("1.2.3")
+    app.setApplicationVersion("1.2.4")
     app.setStyle("Fusion")  # consistent look on all Windows builds
 
     # Global font

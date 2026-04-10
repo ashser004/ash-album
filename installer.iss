@@ -15,7 +15,7 @@
 ; ============================================================
 
 #define MyAppName      "Ash Album"
-#define MyAppVersion   "1.2.3"
+#define MyAppVersion   "1.2.4"
 #define MyAppPublisher "Ash Album"
 #define MyAppURL       "https://github.com/AshAlbum"
 #define MyAppExeName   "Ash Album.exe"
