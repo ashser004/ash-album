@@ -38,7 +38,7 @@ jobs:
       - name: Build EXE with PyInstaller
         shell: cmd
         run: |
-          pyinstaller --ondir --windowed --clean --noconfirm --icon=icon.png --add-data "icon.png;." --add-data "update.png;." --name "Ash Album" main.py
+          pyinstaller --onedir --windowed --clean --noconfirm --icon=icon.png --add-data "icon.png;." --add-data "update.png;." --name "Ash Album" main.py
 
       - name: Convert icon.png to icon.ico
         shell: cmd
@@ -103,7 +103,7 @@ jobs:
 
       - name: Build binary with PyInstaller
         run: |
-          pyinstaller --ondir --windowed --clean --noconfirm \
+          pyinstaller --onedir --windowed --clean --noconfirm \
             --icon=icon.png --add-data "icon.png:." --add-data "update.png:." \
             --name "ash-album" main.py
 
