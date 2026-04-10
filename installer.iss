@@ -22,7 +22,7 @@
 #define MyAppExeName   "Ash Album.exe"
 
 [Setup]
-AppId={{B8A5D2E1-7F3C-4A2D-9E6B-1C5D8F0A3E7B}
+AppId={{B8A5D2E1-7F3C-4A2D-9E6B-1C5D8F0A3E7B}}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
