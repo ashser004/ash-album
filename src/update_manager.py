@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import os
+import socket
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -18,7 +19,7 @@ from PySide6.QtCore import QThread, Signal
 
 DEFAULT_MANIFEST_URL = "https://raw.githubusercontent.com/ashser004/ash-album/main/version.json"
 GITHUB_LATEST_RELEASE_URL = "https://api.github.com/repos/ashser004/ash-album/releases/latest"
-DEFAULT_INSTALLER_NAME = "Ash Album Setup.exe"
+DEFAULT_INSTALLER_NAME = "Ash.Album.Setup.exe"
 DOWNLOAD_CHUNK_SIZE = 64 * 1024
 REQUEST_HEADERS = {
     "User-Agent": "Ash Album update checker",
@@ -65,6 +66,66 @@ def _release_download_url(version: str) -> str:
     )
 
 
+def _is_network_error(exc: BaseException) -> bool:
+    if isinstance(exc, HTTPError):
+        return False
+    if isinstance(exc, URLError):
+        reason = exc.reason
+        if isinstance(reason, (socket.timeout, TimeoutError, socket.gaierror, OSError, ConnectionError)):
+            return True
+        reason_text = str(reason).lower()
+        return any(
+            phrase in reason_text
+            for phrase in (
+                "timed out",
+                "temporary failure in name resolution",
+                "name or service not known",
+                "network is unreachable",
+                "connection refused",
+                "connection reset",
+                "no route to host",
+                "failed to establish a new connection",
+            )
+        )
+    if isinstance(exc, OSError):
+        message = str(exc).lower()
+        return any(
+            phrase in message
+            for phrase in (
+                "timed out",
+                "temporary failure in name resolution",
+                "name or service not known",
+                "network is unreachable",
+                "connection refused",
+                "connection reset",
+                "no route to host",
+            )
+        )
+    return False
+
+
+def _pick_release_asset_url(data: dict[str, Any]) -> str:
+    assets = data.get("assets")
+    if not isinstance(assets, list) or not assets:
+        raise ValueError("GitHub latest release response does not contain any assets")
+
+    for asset in assets:
+        if not isinstance(asset, dict):
+            continue
+        browser_url = str(asset.get("browser_download_url", "")).strip()
+        if not browser_url:
+            continue
+
+        name = str(asset.get("name", "")).strip().lower()
+        label = str(asset.get("label", "")).strip().lower()
+        if name.endswith(".exe") or label.endswith(".exe"):
+            return browser_url
+        if "setup" in name or "setup" in label:
+            return browser_url
+
+    raise ValueError("GitHub latest release does not contain a Windows installer asset")
+
+
 def _release_page_url(version: str) -> str:
     cleaned = version.strip().lstrip("vV")
     return f"https://github.com/ashser004/ash-album/releases/tag/v{cleaned}"
@@ -97,7 +158,7 @@ def _manifest_from_latest_release(data: dict[str, Any], source_url: str) -> Upda
         raise ValueError("GitHub latest release response does not contain a tag_name")
 
     version = tag_name.lstrip("vV")
-    download_url = _release_download_url(version)
+    download_url = _pick_release_asset_url(data)
     release_url = str(data.get("html_url") or _release_page_url(version))
     return UpdateManifest(
         version=version,
@@ -109,18 +170,26 @@ def _manifest_from_latest_release(data: dict[str, Any], source_url: str) -> Upda
 
 def fetch_manifest(manifest_url: str = DEFAULT_MANIFEST_URL) -> UpdateManifest:
     errors: list[str] = []
+    network_failures = 0
 
     try:
         latest_release_data = _read_json(GITHUB_LATEST_RELEASE_URL)
         return _manifest_from_latest_release(latest_release_data, GITHUB_LATEST_RELEASE_URL)
     except (HTTPError, URLError, OSError, ValueError, json.JSONDecodeError) as exc:
         errors.append(f"latest release lookup: {exc}")
+        if _is_network_error(exc):
+            network_failures += 1
 
     try:
         version_data = _read_json(manifest_url)
         return _manifest_from_version_data(version_data, manifest_url)
     except (HTTPError, URLError, OSError, ValueError, json.JSONDecodeError) as exc:
         errors.append(f"manifest lookup: {exc}")
+        if _is_network_error(exc):
+            network_failures += 1
+
+    if network_failures >= 2:
+        raise ConnectionError("No internet connection")
 
     raise ValueError("; ".join(errors) or "Could not fetch update information")
 

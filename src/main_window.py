@@ -400,9 +400,29 @@ class MainWindow(QMainWindow):
         self._restore_update_button()
         self._show_toast("You are already up to date", 2500)
 
+    def _is_no_internet_error(self, message: str) -> bool:
+        text = message.lower()
+        return any(
+            phrase in text
+            for phrase in (
+                "no internet connection",
+                "temporary failure in name resolution",
+                "name or service not known",
+                "network is unreachable",
+                "connection refused",
+                "connection reset",
+                "no route to host",
+                "timed out",
+                "failed to establish a new connection",
+            )
+        )
+
     def _on_update_failed(self, message: str):
         self._update_busy = False
         self._restore_update_button()
+        if self._is_no_internet_error(message):
+            self._show_toast("No internet connection", 2500)
+            return
         self._show_toast("Could not check for updates", 2500)
 
     # ---- tab bar ----
