@@ -8,8 +8,6 @@ from pathlib import Path
 
 from PySide6.QtCore import Qt, Signal, QSize, QTimer, QUrl, QEvent
 from PySide6.QtGui import QFont, QPixmap, QKeySequence, QShortcut, QImage
-from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput
-from PySide6.QtMultimediaWidgets import QVideoWidget
 from PySide6.QtWidgets import (
     QDialog,
     QHBoxLayout,
@@ -52,6 +50,9 @@ class ViewerWindow(QDialog):
         self._ready = False  # guard for resizeEvent
         self._current_pixmap: QPixmap | None = None
         self._is_video = False
+        self._video_widget = None
+        self._media_player = None
+        self._audio_output = None
         self._copy_feedback_active = False
         self._copy_button_text = "Copy"
         self._zoom_factor = 1.0
@@ -123,17 +124,13 @@ class ViewerWindow(QDialog):
         self._image_scroll.setWidget(self._image_label)
         self._media_stack.addWidget(self._image_scroll)
 
-        # Page 1: video widget
-        self._video_widget = QVideoWidget()
-        self._video_widget.setStyleSheet("background-color: black;")
-        self._media_stack.addWidget(self._video_widget)
-
-        # Media player
-        self._media_player = QMediaPlayer()
-        self._audio_output = QAudioOutput()
-        self._media_player.setAudioOutput(self._audio_output)
-        self._media_player.setVideoOutput(self._video_widget)
-        self._media_player.errorOccurred.connect(self._on_media_error)
+        # Page 1: video placeholder (real QtMultimedia widgets are created on demand)
+        self._video_page = QWidget()
+        self._video_page.setStyleSheet("background-color: black;")
+        self._video_layout = QVBoxLayout(self._video_page)
+        self._video_layout.setContentsMargins(0, 0, 0, 0)
+        self._video_layout.setSpacing(0)
+        self._media_stack.addWidget(self._video_page)
 
         media_row.addWidget(self._media_stack, 1)
 
@@ -247,6 +244,23 @@ class ViewerWindow(QDialog):
         QShortcut(QKeySequence(Qt.Key.Key_Escape), self, self.close)
         QShortcut(QKeySequence(Qt.Key.Key_Space), self, self._toggle_play_pause)
 
+    def _ensure_video_widgets(self):
+        if self._video_widget and self._media_player and self._audio_output:
+            return
+
+        from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
+        from PySide6.QtMultimediaWidgets import QVideoWidget
+
+        self._video_widget = QVideoWidget(self._video_page)
+        self._video_widget.setStyleSheet("background-color: black;")
+        self._video_layout.addWidget(self._video_widget)
+
+        self._media_player = QMediaPlayer()
+        self._audio_output = QAudioOutput()
+        self._media_player.setAudioOutput(self._audio_output)
+        self._media_player.setVideoOutput(self._video_widget)
+        self._media_player.errorOccurred.connect(self._on_media_error)
+
     # ────────────────── display ──────────────────
 
     def _current_path(self) -> str | None:
@@ -261,7 +275,8 @@ class ViewerWindow(QDialog):
         self._restore_copy_button()
 
         # Stop any existing playback
-        self._media_player.stop()
+        if self._media_player:
+            self._media_player.stop()
 
         path = self._current_path()
         if not path:
@@ -393,14 +408,18 @@ class ViewerWindow(QDialog):
 
     def _show_video(self, path: str):
         self._current_pixmap = None
+        self._ensure_video_widgets()
         self._media_stack.setCurrentIndex(1)
-        self._media_player.setSource(QUrl.fromLocalFile(path))
-        self._media_player.play()
+        if self._media_player:
+            self._media_player.setSource(QUrl.fromLocalFile(path))
+            self._media_player.play()
         self._btn_play.setText("⏸  Pause")
 
     def _toggle_play_pause(self):
-        if not self._is_video:
+        if not self._is_video or not self._media_player:
             return
+        from PySide6.QtMultimedia import QMediaPlayer
+
         state = self._media_player.playbackState()
         if state == QMediaPlayer.PlaybackState.PlayingState:
             self._media_player.pause()
@@ -411,6 +430,8 @@ class ViewerWindow(QDialog):
 
     def _on_media_error(self, error, message):
         """If video playback fails, fall back to a static frame."""
+        if not self._media_player:
+            return
         path = self._current_path()
         if not path:
             return
@@ -554,6 +575,7 @@ class ViewerWindow(QDialog):
         return super().eventFilter(watched, event)
 
     def closeEvent(self, event):
-        self._media_player.stop()
+        if self._media_player:
+            self._media_player.stop()
         self.closed.emit()
         super().closeEvent(event)

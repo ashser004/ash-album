@@ -29,8 +29,6 @@ from PySide6.QtGui import QFont, QIcon
 
 from src.config import AppConfig, ALL_EXTENSIONS, PDF_EXTENSIONS
 from src.theme import get_stylesheet
-from src.first_run import FirstRunDialog
-from src.main_window import MainWindow
 
 
 def _get_file_arg():
@@ -104,6 +102,9 @@ def main():
         controller = StandalonePDFViewer(pdf_arg, config)
     else:
         # Normal gallery mode
+        from src.first_run import FirstRunDialog
+        from src.main_window import MainWindow
+
         if config.is_first_run():
             dlg = FirstRunDialog(config)
             if dlg.exec() == 0:  # rejected / closed

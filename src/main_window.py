@@ -49,7 +49,6 @@ from .config import (
     SORT_OPTIONS,
     AppConfig,
 )
-from .crop_widget import CropDialog
 from .default_app import (
     open_default_apps_settings,
     set_default_button_hidden,
@@ -58,17 +57,8 @@ from .default_app import (
 from .gallery_widget import GalleryWidget
 from .media_ops import MediaOperations, copy_files_to_clipboard
 from .models import MediaItem
-from .pdf_export import auto_filename, generate_pdf
-from .pdf_viewer import PDFViewerWindow
 from .scanner import ScannerWorker
 from .theme import COLORS
-from .update_dialog import UpdateDialog
-from .update_manager import (
-    DEFAULT_MANIFEST_URL,
-    UpdateManifest,
-    UpdateCheckWorker,
-    cleanup_download_cache,
-)
 from .thumb_loader import ThumbnailWorker
 from .viewer_window import ViewerWindow
 
@@ -160,8 +150,8 @@ class MainWindow(QMainWindow):
         self._info_popup = _TipPopup(self)
 
         # ---- update state ----
-        self._update_worker: UpdateCheckWorker | None = None
-        self._update_dialog: UpdateDialog | None = None
+        self._update_worker: object | None = None
+        self._update_dialog: object | None = None
         self._update_busy = False
         self._update_cooldown_active = False
         self._update_cooldown_timer = QTimer(self)
@@ -171,11 +161,12 @@ class MainWindow(QMainWindow):
         # ---- media ops ----
         self._ops = MediaOperations(self.cfg.hidden_dir)
 
-        cleanup_download_cache(Path(self.cfg.base_dir) / "updates")
-
         # ---- build UI ----
         self._build_ui()
         self._apply_initial_state()
+
+        # Cleanup downloaded update files after the window can paint.
+        QTimer.singleShot(0, self._cleanup_update_cache)
 
         # ---- start scan ----
         QTimer.singleShot(100, self._start_scan)
@@ -368,6 +359,8 @@ class MainWindow(QMainWindow):
         if self._update_worker and self._update_worker.isRunning():
             return
 
+        from .update_manager import DEFAULT_MANIFEST_URL, UpdateCheckWorker
+
         self._update_worker = UpdateCheckWorker(APP_VERSION, DEFAULT_MANIFEST_URL, self)
         self._update_worker.update_available.connect(self._on_update_available)
         self._update_worker.up_to_date.connect(self._on_update_up_to_date)
@@ -386,9 +379,13 @@ class MainWindow(QMainWindow):
         if platform.system() == "Windows" and not self._update_busy and not self._update_cooldown_active:
             self._update_btn.setEnabled(True)
 
-    def _on_update_available(self, manifest: UpdateManifest | object):
+    def _on_update_available(self, manifest: object):
         self._update_busy = False
         self._restore_update_button()
+
+        from .update_dialog import UpdateDialog
+        from .update_manager import UpdateManifest
+
         if not isinstance(manifest, UpdateManifest):
             return
         self._update_dialog = UpdateDialog(manifest, Path(self.cfg.base_dir) / "updates", self)
@@ -909,6 +906,8 @@ class MainWindow(QMainWindow):
 
     def _open_pdf_viewer(self, pdf_path: str, sibling_pdfs: list[str] | None = None):
         """Open the PDF viewer dialog."""
+        from .pdf_viewer import PDFViewerWindow
+
         dlg = PDFViewerWindow(pdf_path, sibling_pdfs, self)
         dlg.exec()
 
@@ -1208,6 +1207,8 @@ class MainWindow(QMainWindow):
         self._update_sel_label()
 
     def _do_crop(self, path: str):
+        from .crop_widget import CropDialog
+
         dlg = CropDialog(path, self)
         dlg.cropped.connect(self._on_cropped)
         dlg.exec()
@@ -1234,6 +1235,8 @@ class MainWindow(QMainWindow):
     # ================================================================
 
     def _generate_pdf(self):
+        from .pdf_export import auto_filename, generate_pdf
+
         # Only images from selection
         img_exts = IMAGE_EXTENSIONS
         images = [
@@ -1324,6 +1327,11 @@ class MainWindow(QMainWindow):
                 )
         except Exception as exc:
             QMessageBox.warning(self, "Error", f"PDF generation failed:\n{exc}")
+
+    def _cleanup_update_cache(self):
+        from .update_manager import cleanup_download_cache
+
+        cleanup_download_cache(Path(self.cfg.base_dir) / "updates")
 
     def _ask_pdf_page_size(self) -> str | None:
         """Show dialog to choose PDF page size. Returns 'a4', 'default', or None."""

@@ -106,12 +106,19 @@ class ThumbnailWorker(QThread):
 
     def _load_or_generate(self, file_path: str) -> QImage | None:
         cp = self._cache_path(file_path)
+        source_path = Path(file_path)
         if cp.exists():
-            img = QImage(str(cp))
-            if not img.isNull():
-                return img
+            if not source_path.exists():
+                try:
+                    cp.unlink()
+                except OSError:
+                    pass
+            else:
+                img = QImage(str(cp))
+                if not img.isNull():
+                    return img
 
-        ext = Path(file_path).suffix.lower()
+        ext = source_path.suffix.lower()
         if ext in VIDEO_EXTENSIONS:
             img = self._video_thumb(file_path)
         else:
