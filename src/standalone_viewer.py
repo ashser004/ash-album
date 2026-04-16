@@ -131,6 +131,8 @@ class StandaloneViewer(QMainWindow):
     def _do_delete(self, path: str):
         ok = self._ops.delete_to_trash(path)
         if ok:
+            name = Path(path).name
+            self._viewer.show_toast(f"🗑  {name}  moved to Recycle Bin")
             self._viewer.confirm_removal(path)
             if path in self._selected_paths:
                 self._selected_paths.remove(path)

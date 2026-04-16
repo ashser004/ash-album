@@ -1164,10 +1164,13 @@ class MainWindow(QMainWindow):
         ok = self._ops.delete_to_trash(path)
         if ok:
             name = Path(path).name
+            viewer = self._active_viewer
             self._remove_item(path)
-            if self._active_viewer:
-                self._active_viewer.confirm_removal(path)
-            self._show_toast(f"🗑  {name}  moved to Recycle Bin")
+            if viewer:
+                viewer.show_toast(f"🗑  {name}  moved to Recycle Bin")
+                viewer.confirm_removal(path)
+            else:
+                self._show_toast(f"🗑  {name}  moved to Recycle Bin")
 
     def _do_hide(self, path: str):
         new_path = self._ops.hide_file(path)

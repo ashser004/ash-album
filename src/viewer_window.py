@@ -199,6 +199,20 @@ class ViewerWindow(QDialog):
 
         root.addWidget(bar)
 
+        # --- toast overlay (viewer-local feedback) ---
+        self._toast = QLabel(self)
+        self._toast.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._toast.setFixedHeight(40)
+        self._toast.setStyleSheet(
+            f"background-color: {COLORS['bg_lighter']}; color: {COLORS['text']}; "
+            f"border-radius: 8px; font-size: 13px; font-weight: 600; "
+            f"padding: 8px 24px; border: 1px solid {COLORS['border']};"
+        )
+        self._toast.hide()
+        self._toast_timer = QTimer(self)
+        self._toast_timer.setSingleShot(True)
+        self._toast_timer.timeout.connect(self._toast.hide)
+
     # ────────────────── helpers ──────────────────
 
     @staticmethod
@@ -530,6 +544,18 @@ class ViewerWindow(QDialog):
         self._btn_copy.setText("Copied")
         self._copy_feedback_timer.start(5000)
 
+    def show_toast(self, message: str, duration_ms: int = 2500):
+        """Show feedback inside the viewer window."""
+        self._toast.setText(message)
+        self._toast.adjustSize()
+        self._toast.setFixedWidth(max(self._toast.sizeHint().width() + 48, 280))
+        x = (self.width() - self._toast.width()) // 2
+        y = self.height() - 110
+        self._toast.move(x, y)
+        self._toast.raise_()
+        self._toast.show()
+        self._toast_timer.start(duration_ms)
+
     def _restore_copy_button(self):
         if not self._copy_feedback_active:
             return
@@ -567,6 +593,10 @@ class ViewerWindow(QDialog):
         # Only re-scale images; video widget auto-resizes
         if not self._is_video and self._current_pixmap:
             self._apply_image_zoom(preserve_center=True)
+        if self._toast.isVisible():
+            x = (self.width() - self._toast.width()) // 2
+            y = self.height() - 110
+            self._toast.move(x, y)
 
     def eventFilter(self, watched, event):
         if watched is self._image_scroll.viewport():
