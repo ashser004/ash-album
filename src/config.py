@@ -9,7 +9,7 @@ import os
 from pathlib import Path
 
 APP_NAME = "Ash Album"
-APP_VERSION = "1.2.4"
+APP_VERSION = "1.2.5"
 
 DEFAULT_BASE_DIR = Path.home() / "Documents" / "AshAlbum"
 

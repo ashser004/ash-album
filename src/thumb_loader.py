@@ -104,19 +104,52 @@ class ThumbnailWorker(QThread):
         h = hashlib.md5(file_path.encode("utf-8")).hexdigest()
         return self.cache_dir / f"{h}.jpg"
 
+    def _failed_path(self, file_path: str) -> Path:
+        h = hashlib.md5(file_path.encode("utf-8")).hexdigest()
+        return self.cache_dir / f"{h}.failed"
+
+    @staticmethod
+    def _file_signature(path: Path) -> str | None:
+        try:
+            st = path.stat()
+        except OSError:
+            return None
+        return f"{st.st_size}:{st.st_mtime_ns}"
+
     def _load_or_generate(self, file_path: str) -> QImage | None:
         cp = self._cache_path(file_path)
+        fp = self._failed_path(file_path)
         source_path = Path(file_path)
+
+        if not source_path.exists():
+            for stale in (cp, fp):
+                if stale.exists():
+                    try:
+                        stale.unlink()
+                    except OSError:
+                        pass
+            return None
+
+        signature = self._file_signature(source_path)
+
+        # If this file previously failed thumbnail generation and has not changed,
+        # skip re-decoding to avoid repeated noisy backend errors and slow rescans.
+        if fp.exists() and signature:
+            try:
+                if fp.read_text(encoding="utf-8").strip() == signature:
+                    return None
+            except OSError:
+                pass
+
         if cp.exists():
-            if not source_path.exists():
-                try:
-                    cp.unlink()
-                except OSError:
-                    pass
-            else:
-                img = QImage(str(cp))
-                if not img.isNull():
-                    return img
+            img = QImage(str(cp))
+            if not img.isNull():
+                if fp.exists():
+                    try:
+                        fp.unlink()
+                    except OSError:
+                        pass
+                return img
 
         ext = source_path.suffix.lower()
         if ext in VIDEO_EXTENSIONS:
@@ -126,6 +159,16 @@ class ThumbnailWorker(QThread):
 
         if img and not img.isNull():
             img.save(str(cp), "JPEG", 85)
+            if fp.exists():
+                try:
+                    fp.unlink()
+                except OSError:
+                    pass
+        elif ext in VIDEO_EXTENSIONS and signature:
+            try:
+                fp.write_text(signature, encoding="utf-8")
+            except OSError:
+                pass
         return img
 
     def _image_thumb(self, file_path: str) -> QImage | None:
@@ -152,6 +195,18 @@ class ThumbnailWorker(QThread):
             import cv2
         except ImportError:
             return None
+        try:
+            # Best-effort clamp of OpenCV logging for builds that ignore env vars.
+            if hasattr(cv2, "setLogLevel"):
+                level = getattr(cv2, "LOG_LEVEL_ERROR", None)
+                if level is not None:
+                    cv2.setLogLevel(level)
+            elif hasattr(cv2, "utils") and hasattr(cv2.utils, "logging"):
+                log_mod = cv2.utils.logging
+                if hasattr(log_mod, "setLogLevel") and hasattr(log_mod, "LOG_LEVEL_ERROR"):
+                    log_mod.setLogLevel(log_mod.LOG_LEVEL_ERROR)
+        except Exception:
+            pass
         try:
             cap = cv2.VideoCapture(file_path)
             ret, frame = cap.read()

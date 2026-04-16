@@ -10,9 +10,16 @@ import sys
 import os
 
 # Suppress noisy FFmpeg / OpenCV warnings in the console
-os.environ["OPENCV_LOG_LEVEL"] = "ERROR"
-os.environ["OPENCV_VIDEOIO_DEBUG"] = "0"
-os.environ["QT_LOGGING_RULES"] = "qt.multimedia.ffmpeg.warning=false"
+os.environ.setdefault("OPENCV_LOG_LEVEL", "ERROR")
+os.environ.setdefault("OPENCV_VIDEOIO_DEBUG", "0")
+os.environ.setdefault("OPENCV_FFMPEG_DEBUG", "0")
+os.environ.setdefault("OPENCV_FFMPEG_LOGLEVEL", "16")
+os.environ.setdefault("OPENCV_FFMPEG_CAPTURE_OPTIONS", "hwaccel;none")
+os.environ.setdefault("QT_FFMPEG_DECODING_HW_DEVICE_TYPES", ",")
+os.environ.setdefault(
+    "QT_LOGGING_RULES",
+    "qt.multimedia.ffmpeg=false;qt.multimedia.ffmpeg.*=false",
+)
 
 # Ensure the project root is on the path so ``src`` package resolves
 # when running from source or from a PyInstaller bundle.
@@ -63,7 +70,7 @@ def main():
 
     app = QApplication(sys.argv)
     app.setApplicationName("Ash Album")
-    app.setApplicationVersion("1.2.4")
+    app.setApplicationVersion("1.2.5")
     app.setStyle("Fusion")  # consistent look on all Windows builds
 
     # Global font
