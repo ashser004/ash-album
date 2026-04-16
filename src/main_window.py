@@ -126,8 +126,8 @@ class _SortComboBox(QComboBox):
         # Hide any selector icon/arrow inside the sort field.
         self.setStyleSheet(
             "QComboBox { min-width: 0px; }"
-            "QComboBox::drop-down { border: none; width: 0px; }"
-            "QComboBox::down-arrow { image: none; width: 0px; height: 0px; }"
+            "QComboBox::drop-down { border: none; width: 0px; margin: 0px; padding: 0px; background: transparent; }"
+            "QComboBox::down-arrow { image: none; width: 0px; height: 0px; border: none; margin: 0px; padding: 0px; background: transparent; }"
         )
 
     def sync_width_to_longest_item(self):
