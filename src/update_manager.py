@@ -264,18 +264,28 @@ class UpdateDownloadWorker(QThread):
             self.failed.emit(str(exc))
 
 
-def cleanup_download_cache(download_dir: str | Path, remove_installers: bool = False):
+def cleanup_download_cache(
+    download_dir: str | Path,
+    remove_installers: bool = False,
+    remove_all: bool = False,
+):
     """Best-effort removal of cached update downloads.
 
     By default, only partial downloads are removed. Pass ``remove_installers``
     when the installer has already been launched and the cached .exe should be
-    reclaimed.
+    reclaimed. Pass ``remove_all`` to remove all files in this folder.
     """
     folder = Path(download_dir)
     if not folder.exists():
         return
     for path in folder.iterdir():
         if not path.is_file():
+            continue
+        if remove_all:
+            try:
+                path.unlink()
+            except OSError:
+                pass
             continue
         suffix = path.suffix.lower()
         if suffix not in {".part", ".tmp"} and not (remove_installers and suffix == ".exe"):

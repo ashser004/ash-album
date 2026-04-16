@@ -8,6 +8,7 @@ Usage:
 
 import sys
 import os
+from pathlib import Path
 
 # Suppress noisy FFmpeg / OpenCV warnings in the console
 os.environ.setdefault("OPENCV_LOG_LEVEL", "ERROR")
@@ -62,6 +63,26 @@ def _get_pdf_arg():
     return None
 
 
+def _cleanup_updates_on_launch(config: AppConfig):
+    """Clear stale update files at launch only when the updates folder is non-empty."""
+    updates_dir = Path(config.base_dir) / "updates"
+    if not updates_dir.exists():
+        return
+
+    try:
+        with os.scandir(updates_dir) as entries:
+            try:
+                next(entries)
+            except StopIteration:
+                return
+    except OSError:
+        return
+
+    from src.update_manager import cleanup_download_cache
+
+    cleanup_download_cache(updates_dir, remove_installers=True, remove_all=True)
+
+
 def main():
     # High-DPI support
     QApplication.setHighDpiScaleFactorRoundingPolicy(
@@ -96,6 +117,7 @@ def main():
         if not config.is_first_run():
             config.load()
         config.save()
+        _cleanup_updates_on_launch(config)
 
         from src.standalone_viewer import StandaloneViewer
         controller = StandaloneViewer(file_arg, config)
@@ -104,6 +126,7 @@ def main():
         if not config.is_first_run():
             config.load()
         config.save()
+        _cleanup_updates_on_launch(config)
 
         from src.standalone_pdf_viewer import StandalonePDFViewer
         controller = StandalonePDFViewer(pdf_arg, config)
@@ -119,6 +142,8 @@ def main():
         else:
             config.load()
             config.save()  # ensure dirs exist
+
+        _cleanup_updates_on_launch(config)
 
         # Main window
         window = MainWindow(config)
