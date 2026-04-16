@@ -31,6 +31,7 @@ class ViewerWindow(QDialog):
     # Signals so the main window can react
     request_select = Signal(str)        # toggle selection
     request_crop = Signal(str)          # open crop dialog
+    request_rotate = Signal(str)        # rotate image 90° clockwise
     request_delete = Signal(str)        # delete
     request_hide = Signal(str)          # hide
     request_generate_pdf = Signal()     # generate PDF (standalone mode)
@@ -172,6 +173,11 @@ class ViewerWindow(QDialog):
         self._btn_crop = _S("Crop", bg="#3d5afe", hover="#536dfe")
         self._btn_crop.clicked.connect(self._on_crop)
 
+        self._btn_rotate = _S("↻", bg="#1f8fff", hover="#47a4ff")
+        self._btn_rotate.setToolTip("Rotate 90°")
+        self._btn_rotate.clicked.connect(self._on_rotate)
+        self._btn_rotate.hide()
+
         self._btn_play = _S("⏸  Pause", bg="#00bfa5", hover="#1de9b6")
         self._btn_play.clicked.connect(self._toggle_play_pause)
         self._btn_play.hide()
@@ -191,7 +197,7 @@ class ViewerWindow(QDialog):
         self._btn_gen_pdf.hide()  # shown only in standalone mode
 
         bar_lay.addStretch()
-        for b in (self._btn_select, self._btn_crop, self._btn_play,
+        for b in (self._btn_select, self._btn_crop, self._btn_rotate, self._btn_play,
                   self._btn_delete, self._btn_hide, self._btn_copy,
                   self._btn_gen_pdf):
             bar_lay.addWidget(b)
@@ -316,6 +322,7 @@ class ViewerWindow(QDialog):
         else:
             self._btn_select.setText("Select")
         self._btn_crop.setVisible(not self._is_video)
+        self._btn_rotate.setVisible(not self._is_video)
         self._btn_play.setVisible(self._is_video)
         self._btn_copy.setVisible(not self._is_video)
 
@@ -519,6 +526,11 @@ class ViewerWindow(QDialog):
         path = self._current_path()
         if path:
             self.request_crop.emit(path)
+
+    def _on_rotate(self):
+        path = self._current_path()
+        if path and not self._is_video:
+            self.request_rotate.emit(path)
 
     def _on_delete(self):
         path = self._current_path()

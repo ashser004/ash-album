@@ -22,7 +22,7 @@ from PySide6.QtWidgets import (
 
 from .config import ALL_EXTENSIONS, IMAGE_EXTENSIONS, AppConfig
 from .crop_widget import CropDialog
-from .media_ops import MediaOperations
+from .media_ops import MediaOperations, rotate_image_clockwise_90
 from .pdf_export import auto_filename, generate_pdf
 from .theme import COLORS
 from .viewer_window import ViewerWindow
@@ -92,6 +92,7 @@ class StandaloneViewer(QMainWindow):
         )
         self._viewer.request_select.connect(self._toggle_select)
         self._viewer.request_crop.connect(self._do_crop)
+        self._viewer.request_rotate.connect(self._do_rotate)
         self._viewer.request_delete.connect(self._do_delete)
         self._viewer.request_hide.connect(self._do_hide)
         self._viewer.request_generate_pdf.connect(self._generate_pdf)
@@ -114,6 +115,25 @@ class StandaloneViewer(QMainWindow):
         dlg = CropDialog(path, self._viewer)
         dlg.cropped.connect(self._on_cropped)
         dlg.exec()
+
+    def _do_rotate(self, path: str):
+        ok, reason = rotate_image_clockwise_90(path)
+        if not ok:
+            if reason == "not_found":
+                self._viewer.show_toast("File not found", 2200)
+            elif reason == "animated":
+                self._viewer.show_toast("Rotate is not supported for animated GIFs", 2600)
+            else:
+                self._viewer.show_toast("Could not rotate image", 2400)
+            return
+
+        source = Path(path)
+        if not source.exists():
+            self._viewer.show_toast("Could not rotate image", 2400)
+            return
+
+        self._viewer.show_toast(f"↻  {source.name} rotated 90°", 2400)
+        self._viewer._show_current()
 
     def _on_cropped(self, saved_path: str):
         # If it's a new file in the same folder, add to viewer's navigation list

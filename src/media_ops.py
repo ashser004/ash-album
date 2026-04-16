@@ -10,9 +10,46 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 
+from PIL import Image as PILImage, ImageOps
+
 from PySide6.QtCore import QMimeData, QUrl
 from PySide6.QtWidgets import QApplication
 from send2trash import send2trash
+
+
+def rotate_image_clockwise_90(file_path: str) -> tuple[bool, str]:
+    """Rotate an image 90 degrees clockwise in place.
+
+    Returns (ok, reason). On success reason is "ok".
+    Possible error reasons: not_found, animated, failed.
+    """
+    source = Path(file_path)
+    if not source.exists() or not source.is_file():
+        return False, "not_found"
+
+    try:
+        with PILImage.open(source) as img:
+            if getattr(img, "is_animated", False):
+                return False, "animated"
+
+            img = ImageOps.exif_transpose(img)
+            rotated = img.transpose(PILImage.Transpose.ROTATE_270)
+
+            save_kwargs: dict[str, object] = {}
+            exif = img.info.get("exif")
+            if exif:
+                save_kwargs["exif"] = exif
+
+            fmt = img.format
+            if fmt:
+                save_kwargs["format"] = fmt
+            if fmt == "JPEG":
+                save_kwargs["quality"] = 95
+
+            rotated.save(source, **save_kwargs)
+        return True, "ok"
+    except Exception:
+        return False, "failed"
 
 
 def copy_files_to_clipboard(paths: list[str]) -> bool:

@@ -55,7 +55,7 @@ from .default_app import (
     should_show_default_button,
 )
 from .gallery_widget import GalleryWidget
-from .media_ops import MediaOperations, copy_files_to_clipboard
+from .media_ops import MediaOperations, copy_files_to_clipboard, rotate_image_clockwise_90
 from .models import MediaItem
 from .scanner import ScannerWorker
 from .theme import COLORS
@@ -1126,6 +1126,7 @@ class MainWindow(QMainWindow):
         dlg.request_hide.connect(self._do_unhide)
         dlg.request_select.connect(self._viewer_toggle_select)
         dlg.request_crop.connect(self._do_crop)
+        dlg.request_rotate.connect(self._do_rotate)
         dlg.request_delete.connect(self._do_delete)
         self._active_viewer = dlg
         dlg.exec()
@@ -1135,6 +1136,7 @@ class MainWindow(QMainWindow):
         dlg = ViewerWindow(paths, idx, self._selected_paths, self)
         dlg.request_select.connect(self._viewer_toggle_select)
         dlg.request_crop.connect(self._do_crop)
+        dlg.request_rotate.connect(self._do_rotate)
         dlg.request_delete.connect(self._do_delete)
         dlg.request_hide.connect(self._do_hide)
         self._active_viewer = dlg
@@ -1215,6 +1217,37 @@ class MainWindow(QMainWindow):
         dlg = CropDialog(path, self)
         dlg.cropped.connect(self._on_cropped)
         dlg.exec()
+
+    def _do_rotate(self, path: str):
+        ok, reason = rotate_image_clockwise_90(path)
+        viewer = self._active_viewer
+
+        if not ok:
+            if reason == "not_found":
+                msg = "File not found"
+            elif reason == "animated":
+                msg = "Rotate is not supported for animated GIFs"
+            else:
+                msg = "Could not rotate image"
+            if viewer:
+                viewer.show_toast(msg, 2400)
+            else:
+                self._show_toast(msg, 2400)
+            return
+
+        # Invalidate cache and refresh thumbnail for this exact path.
+        self._thumb_cache.pop(path, None)
+        if self._thumb_worker:
+            self._thumb_worker.invalidate(path)
+            self._thumb_worker.enqueue(path)
+
+        name = Path(path).name
+        msg = f"↻  {name} rotated 90°"
+        if viewer:
+            viewer.show_toast(msg, 2400)
+            viewer._show_current()
+        else:
+            self._show_toast(msg, 2400)
 
     def _on_cropped(self, saved_path: str):
         # Invalidate cached thumbnail so it regenerates
