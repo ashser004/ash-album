@@ -118,6 +118,26 @@ class _TipPopup(QFrame):
         self.raise_()
 
 
+class _SortComboBox(QComboBox):
+    """Sort combobox that fits content width and opens popup below the control."""
+
+    def sync_width_to_longest_item(self):
+        if self.count() == 0:
+            return
+        fm = self.fontMetrics()
+        longest = max(fm.horizontalAdvance(self.itemText(i)) for i in range(self.count()))
+        # Text width + left/right padding + arrow/dropdown area.
+        self.setFixedWidth(longest + 48)
+
+    def showPopup(self):
+        super().showPopup()
+        popup = self.view().window()
+        if popup:
+            pos = self.mapToGlobal(QPoint(0, self.height()))
+            popup.move(pos)
+            popup.setMinimumWidth(self.width())
+
+
 class MainWindow(QMainWindow):
     def __init__(self, config: AppConfig):
         super().__init__()
@@ -315,12 +335,12 @@ class MainWindow(QMainWindow):
         sort_label.setStyleSheet(f"color: {COLORS['text_dim']}; font-size: 12px;")
         lay.addWidget(sort_label)
 
-        self._sort_combo = QComboBox()
+        self._sort_combo = _SortComboBox()
         for display, key in SORT_OPTIONS:
             self._sort_combo.addItem(display, key)
         # Default to Date Modified (Newest First) → index 4
         self._sort_combo.setCurrentIndex(4)
-        self._sort_combo.setFixedWidth(250)
+        self._sort_combo.sync_width_to_longest_item()
         self._sort_combo.currentIndexChanged.connect(self._on_sort_changed)
         lay.addWidget(self._sort_combo)
 
