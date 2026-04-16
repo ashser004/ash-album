@@ -362,6 +362,20 @@ class GalleryWidget(QListWidget):
     def path_exists(self, path: str) -> bool:
         return path in self._path_items
 
+    def _lock_horizontal_scroll(self):
+        bar = self.horizontalScrollBar()
+        if bar.value() != 0:
+            bar.setValue(0)
+
+    def scrollContentsBy(self, dx: int, dy: int):
+        """Lock gallery scrolling to vertical movement only."""
+        super().scrollContentsBy(0, dy)
+        self._lock_horizontal_scroll()
+
+    def wheelEvent(self, event):
+        super().wheelEvent(event)
+        self._lock_horizontal_scroll()
+
     # ---- signals ----
 
     def _on_click(self, item: QListWidgetItem):
