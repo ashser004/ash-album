@@ -142,6 +142,9 @@ class MainWindow(QMainWindow):
         # ---- workers (created later) ----
         self._scanner: ScannerWorker | None = None
         self._thumb_worker: ThumbnailWorker | None = None
+        self._thumb_prioritize_timer = QTimer(self)
+        self._thumb_prioritize_timer.setSingleShot(True)
+        self._thumb_prioritize_timer.timeout.connect(self._prioritize_visible_thumbnails)
 
         # ---- active viewer (for confirm_removal callbacks) ----
         self._active_viewer: ViewerWindow | None = None
@@ -210,11 +213,13 @@ class MainWindow(QMainWindow):
         self._gallery = GalleryWidget()
         self._gallery.item_activated.connect(self._open_viewer)
         self._gallery.item_toggle_select.connect(self._toggle_select)
+        self._gallery.verticalScrollBar().valueChanged.connect(self._schedule_thumb_prioritization)
         self._stack.addWidget(self._gallery)
 
         # Page 1: hidden gallery
         self._hidden_gallery = GalleryWidget()
         self._hidden_gallery.item_activated.connect(self._open_viewer_hidden)
+        self._hidden_gallery.verticalScrollBar().valueChanged.connect(self._schedule_thumb_prioritization)
         self._stack.addWidget(self._hidden_gallery)
 
         # Page 2: FOLDERS tab — splitter with sidebar + gallery
@@ -496,6 +501,7 @@ class MainWindow(QMainWindow):
         self._folder_gallery = GalleryWidget()
         self._folder_gallery.item_activated.connect(self._open_viewer_folder)
         self._folder_gallery.item_toggle_select.connect(self._toggle_select)
+        self._folder_gallery.verticalScrollBar().valueChanged.connect(self._schedule_thumb_prioritization)
         splitter.addWidget(self._folder_gallery)
 
         splitter.setStretchFactor(0, 0)
@@ -686,6 +692,7 @@ class MainWindow(QMainWindow):
             self._thumb_worker.thumbnail_ready.connect(self._on_thumb_ready)
             self._thumb_worker.start()
         self._thumb_worker.enqueue_batch([i.path for i in batch])
+        self._schedule_thumb_prioritization()
 
     def _on_scan_progress(self, text: str):
         self._status_label.setText(text)
@@ -712,6 +719,7 @@ class MainWindow(QMainWindow):
 
         # Re-sort current view
         self._repopulate_gallery()
+        self._schedule_thumb_prioritization()
 
     def _on_thumb_ready(self, path: str, qimg: QImage):
         pm = QPixmap.fromImage(qimg)
@@ -778,6 +786,8 @@ class MainWindow(QMainWindow):
             for item in filtered:
                 self._add_gallery_item(self._folder_gallery, item)
 
+        self._schedule_thumb_prioritization()
+
     # ================================================================
     #  Tab switching
     # ================================================================
@@ -806,6 +816,7 @@ class MainWindow(QMainWindow):
 
         # Hide bottom bar on PDF→PNG tab, show on all others
         self._bottom_bar.setVisible(tab_id != TAB_PDF_PNG)
+        self._schedule_thumb_prioritization()
 
     # ================================================================
     #  Sorting
@@ -938,6 +949,8 @@ class MainWindow(QMainWindow):
             for item in filtered:
                 self._add_gallery_item(self._gallery, item)
 
+        self._schedule_thumb_prioritization()
+
     def _add_gallery_item(self, gallery, item: MediaItem):
         """Helper: add a single media item to a gallery with thumb + selection."""
         gallery.add_media_item(item.name, item.path, item.media_type)
@@ -1024,6 +1037,33 @@ class MainWindow(QMainWindow):
                 # Queue thumb generation if needed
                 if not pm and self._thumb_worker:
                     self._thumb_worker.enqueue(item.path)
+
+        self._schedule_thumb_prioritization()
+
+    def _schedule_thumb_prioritization(self):
+        if self._thumb_worker is None:
+            return
+        self._thumb_prioritize_timer.start(75)
+
+    def _prioritize_visible_thumbnails(self):
+        if self._thumb_worker is None:
+            return
+
+        if self._current_tab == TAB_HIDDEN:
+            gallery = self._hidden_gallery
+        elif self._current_tab == TAB_FOLDERS:
+            gallery = self._folder_gallery if self._active_folder else None
+        elif self._current_tab == TAB_PDF_PNG:
+            gallery = None
+        else:
+            gallery = self._gallery
+
+        if gallery is None:
+            return
+
+        paths = gallery.visible_paths()
+        if paths:
+            self._thumb_worker.prioritize(paths)
 
     # ================================================================
     #  Toast notifications

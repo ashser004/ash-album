@@ -108,21 +108,22 @@ class ThumbnailWorker(QThread):
         h = hashlib.md5(file_path.encode("utf-8")).hexdigest()
         return self.cache_dir / f"{h}.failed"
 
+    def _legacy_sig_path(self, file_path: str) -> Path:
+        h = hashlib.md5(file_path.encode("utf-8")).hexdigest()
+        return self.cache_dir / f"{h}.sig"
+
     @staticmethod
-    def _file_signature(path: Path) -> str | None:
-        try:
-            st = path.stat()
-        except OSError:
-            return None
+    def _file_signature_from_stat(st) -> str:
         return f"{st.st_size}:{st.st_mtime_ns}"
 
     def _load_or_generate(self, file_path: str) -> QImage | None:
         cp = self._cache_path(file_path)
+        sp = self._legacy_sig_path(file_path)
         fp = self._failed_path(file_path)
         source_path = Path(file_path)
 
         if not source_path.exists():
-            for stale in (cp, fp):
+            for stale in (cp, sp, fp):
                 if stale.exists():
                     try:
                         stale.unlink()
@@ -130,7 +131,11 @@ class ThumbnailWorker(QThread):
                         pass
             return None
 
-        signature = self._file_signature(source_path)
+        try:
+            source_stat = source_path.stat()
+        except OSError:
+            return None
+        signature = self._file_signature_from_stat(source_stat)
 
         # If this file previously failed thumbnail generation and has not changed,
         # skip re-decoding to avoid repeated noisy backend errors and slow rescans.
@@ -142,14 +147,36 @@ class ThumbnailWorker(QThread):
                 pass
 
         if cp.exists():
-            img = QImage(str(cp))
-            if not img.isNull():
-                if fp.exists():
-                    try:
-                        fp.unlink()
-                    except OSError:
-                        pass
-                return img
+            # Fast-path cache validation based on mtime.
+            # If source is newer than cached thumb, regenerate.
+            cache_valid = False
+            try:
+                cache_valid = source_stat.st_mtime_ns <= cp.stat().st_mtime_ns
+            except OSError:
+                cache_valid = False
+
+            if cache_valid:
+                img = QImage(str(cp))
+                if not img.isNull():
+                    # Clean up one-time legacy sidecar if present.
+                    if sp.exists():
+                        try:
+                            sp.unlink()
+                        except OSError:
+                            pass
+                    if fp.exists():
+                        try:
+                            fp.unlink()
+                        except OSError:
+                            pass
+                    return img
+            else:
+                for stale in (cp, sp):
+                    if stale.exists():
+                        try:
+                            stale.unlink()
+                        except OSError:
+                            pass
 
         ext = source_path.suffix.lower()
         if ext in VIDEO_EXTENSIONS:
@@ -159,12 +186,22 @@ class ThumbnailWorker(QThread):
 
         if img and not img.isNull():
             img.save(str(cp), "JPEG", 85)
+            if sp.exists():
+                try:
+                    sp.unlink()
+                except OSError:
+                    pass
             if fp.exists():
                 try:
                     fp.unlink()
                 except OSError:
                     pass
         elif ext in VIDEO_EXTENSIONS and signature:
+            if sp.exists():
+                try:
+                    sp.unlink()
+                except OSError:
+                    pass
             try:
                 fp.write_text(signature, encoding="utf-8")
             except OSError:

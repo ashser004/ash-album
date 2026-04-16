@@ -334,6 +334,25 @@ class GalleryWidget(QListWidget):
         self.clear()
         self._path_items.clear()
 
+    def visible_paths(self) -> list[str]:
+        """Return media paths currently visible in the viewport."""
+        viewport_rect = self.viewport().rect()
+        paths: list[str] = []
+        seen: set[str] = set()
+
+        for i in range(self.count()):
+            item = self.item(i)
+            if item.data(ROLE_DATE_HEADER):
+                continue
+            path = item.data(ROLE_PATH)
+            if not path or path in seen:
+                continue
+            if self.visualItemRect(item).intersects(viewport_rect):
+                seen.add(path)
+                paths.append(path)
+
+        return paths
+
     def get_all_paths(self) -> list[str]:
         return [
             p for i in range(self.count())
