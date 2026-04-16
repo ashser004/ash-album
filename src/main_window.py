@@ -121,13 +121,23 @@ class _TipPopup(QFrame):
 class _SortComboBox(QComboBox):
     """Sort combobox that fits content width and opens popup below the control."""
 
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        # Hide any selector icon/arrow inside the sort field.
+        self.setStyleSheet(
+            "QComboBox { min-width: 0px; }"
+            "QComboBox::drop-down { border: none; width: 0px; }"
+            "QComboBox::down-arrow { image: none; width: 0px; height: 0px; }"
+        )
+
     def sync_width_to_longest_item(self):
         if self.count() == 0:
             return
         fm = self.fontMetrics()
         longest = max(fm.horizontalAdvance(self.itemText(i)) for i in range(self.count()))
-        # Text width + left/right padding + arrow/dropdown area.
-        self.setFixedWidth(longest + 48)
+        # Slightly tighter selector width while keeping labels readable.
+        base_width = longest + 48
+        self.setFixedWidth(int(base_width * 0.8694))
 
     def showPopup(self):
         super().showPopup()
@@ -135,7 +145,7 @@ class _SortComboBox(QComboBox):
         if popup:
             pos = self.mapToGlobal(QPoint(0, self.height()))
             popup.move(pos)
-            popup.setMinimumWidth(self.width())
+            popup.setFixedWidth(self.width())
 
 
 class MainWindow(QMainWindow):
